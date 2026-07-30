@@ -9,8 +9,7 @@ interface FileEntry { id: string; name: string }
 interface Bullet { id: string; text: string }
 interface PendingBatch { files: string[] }
 
-let _uid = 0
-function uid() { return String(++_uid) }
+function uid() { return crypto.randomUUID() }
 function makeBullet(text: string): Bullet { return { id: uid(), text } }
 function makeEntry(name: string): FileEntry { return { id: uid(), name } }
 
@@ -368,7 +367,9 @@ export default function DailyPage() {
   const [pipActive, setPipActive] = useState(false)
   const [pipContainer, setPipContainer] = useState<Element | null>(null)
   const [pipMinimized, setPipMinimized] = useState(false)
+  const [pipSupported, setPipSupported] = useState(true)
   const [editedReport, setEditedReport] = useState<string | null>(null)
+  const [lastReportText, setLastReportText] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -382,6 +383,9 @@ export default function DailyPage() {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
         const parsed = JSON.parse(raw)
+        // localStorage doesn't exist during server-side rendering, so this data can only
+        // be loaded after mount, in an effect — not during the initial render.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (Array.isArray(parsed.edits)) setEdits(parsed.edits)
         if (Array.isArray(parsed.muCreated)) setMuCreated(parsed.muCreated)
         if (Array.isArray(parsed.checkingComponents)) setCheckingComponents(parsed.checkingComponents)
@@ -401,6 +405,11 @@ export default function DailyPage() {
   }, [edits, muCreated, checkingComponents, artworkUploaded])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPipSupported('documentPictureInPicture' in window)
+  }, [])
+
+  useEffect(() => {
     return () => { pipWindowRef.current?.close() }
   }, [])
 
@@ -409,10 +418,12 @@ export default function DailyPage() {
     [edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets]
   )
 
-  // Reset manual edits when the generated report changes (new files / bullet updates)
-  useEffect(() => {
+  // Reset manual edits when the generated report changes (new files / bullet updates).
+  // Done during render, not in an effect, so the stale edited text never flashes on screen first.
+  if (reportText !== lastReportText) {
+    setLastReportText(reportText)
     setEditedReport(null)
-  }, [reportText])
+  }
 
   const displayText = editedReport ?? reportText
 
@@ -505,7 +516,7 @@ export default function DailyPage() {
       pipWindowRef.current?.close()
       return
     }
-    if (!('documentPictureInPicture' in window)) return
+    if (!pipSupported) return
     try {
       const pipWin = await (window as any).documentPictureInPicture.requestWindow({
         width: 180,
@@ -524,7 +535,9 @@ export default function DailyPage() {
         setPipMinimized(false)
         pipWindowRef.current = null
       })
-    } catch {}
+    } catch (err) {
+      console.error('No se pudo abrir la ventana flotante:', err)
+    }
   }
 
   const minimizePip = () => {
@@ -582,11 +595,18 @@ export default function DailyPage() {
             )}
             <button
               onClick={openPip}
-              title={pipActive ? 'Cerrar ventana flotante' : 'Abrir ventana flotante'}
-              className={`p-1.5 rounded-lg border transition-all duration-200 cursor-pointer ${
-                pipActive
-                  ? 'text-[#ccc] border-[#444] bg-[#1a1a1a]'
-                  : 'text-[#777] border-[#2a2a2a] bg-[#0d0d0d] hover:text-[#bbb] hover:border-[#3a3a3a] hover:bg-[#111]'
+              disabled={!pipSupported}
+              title={
+                !pipSupported
+                  ? 'Ventana flotante no disponible en este navegador (usa Chrome o Edge)'
+                  : pipActive ? 'Cerrar ventana flotante' : 'Abrir ventana flotante'
+              }
+              className={`p-1.5 rounded-lg border transition-all duration-200 ${
+                !pipSupported
+                  ? 'text-[#444] border-[#222] bg-[#0d0d0d] cursor-not-allowed'
+                  : pipActive
+                    ? 'text-[#ccc] border-[#444] bg-[#1a1a1a] cursor-pointer'
+                    : 'text-[#777] border-[#2a2a2a] bg-[#0d0d0d] hover:text-[#bbb] hover:border-[#3a3a3a] hover:bg-[#111] cursor-pointer'
               }`}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
