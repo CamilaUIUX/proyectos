@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import Image from 'next/image'
 
 type Category = 'EDIT' | 'MU_CREATED' | 'CHECKING_COMPONENTS' | 'ARTWORK_UPLOADED'
 
@@ -662,9 +663,16 @@ export default function DailyPage() {
             {hasFiles && (
               <button
                 onClick={handleClear}
-                className="text-[11px] font-semibold text-[#888] hover:text-red-400 border border-[#2a2a2a] hover:border-red-500/30 bg-[#0f0f0f] hover:bg-red-500/5 rounded-lg px-3 py-1.5 transition-all duration-200 cursor-pointer"
+                title="Limpiar"
+                className="p-1.5 rounded-lg border border-[#2a2a2a] hover:border-red-500/30 bg-[#0f0f0f] hover:bg-red-500/5 transition-all duration-200 cursor-pointer"
               >
-                Limpiar
+                <Image
+                  src="/icons/clear-trash.png"
+                  alt="Limpiar"
+                  width={15}
+                  height={18}
+                  style={{ imageRendering: 'pixelated' }}
+                />
               </button>
             )}
             <button
