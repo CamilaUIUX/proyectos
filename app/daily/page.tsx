@@ -9,7 +9,13 @@ interface FileEntry { id: string; name: string }
 interface Bullet { id: string; text: string }
 interface PendingBatch { files: string[] }
 
-function uid() { return crypto.randomUUID() }
+function uid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // Fallback for browsers without crypto.randomUUID (older browsers, non-HTTPS contexts).
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
 function makeBullet(text: string): Bullet { return { id: uid(), text } }
 function makeEntry(name: string): FileEntry { return { id: uid(), name } }
 
