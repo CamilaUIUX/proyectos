@@ -35,9 +35,9 @@ function generateReport(
   checkingComponents: FileEntry[],
   artworkUploaded: FileEntry[],
   tomorrowBullets: Bullet[],
-  blockerBullets: Bullet[]
+  blockerBullets: Bullet[],
+  isFriday: boolean
 ): string {
-  const isFriday = new Date().getDay() === 5
   const tomorrowLabel = isFriday ? 'Monday' : 'Tomorrow'
   const lines: string[] = []
 
@@ -376,13 +376,24 @@ export default function DailyPage() {
   const [pipSupported, setPipSupported] = useState(true)
   const [editedReport, setEditedReport] = useState<string | null>(null)
   const [lastReportText, setLastReportText] = useState('')
+  const [mounted, setMounted] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLoad = useRef(false)
   const pipWindowRef = useRef<Window | null>(null)
 
-  const isFriday = new Date().getDay() === 5
+  // `mounted` starts false on both server and the first client render, so the two match
+  // exactly. Only after that first render do we switch to the browser's real date — this
+  // avoids "today"/"is it Friday" ever differing between server-rendered and client-rendered
+  // text (this static page is built once, so its build-time date can differ from the date a
+  // visitor actually loads it on).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
+  }, [])
+
+  const isFriday = mounted && new Date().getDay() === 5
 
   useEffect(() => {
     try {
@@ -420,8 +431,8 @@ export default function DailyPage() {
   }, [])
 
   const reportText = useMemo(
-    () => generateReport(edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets),
-    [edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets]
+    () => generateReport(edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets, isFriday),
+    [edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets, isFriday]
   )
 
   // Reset manual edits when the generated report changes (new files / bullet updates).
@@ -732,7 +743,7 @@ export default function DailyPage() {
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
-              <span className="text-sm font-semibold text-[#ccc] tracking-wide">{todayLabel()}</span>
+              <span className="text-sm font-semibold text-[#ccc] tracking-wide">{mounted ? todayLabel() : ''}</span>
             </div>
             {editedReport !== null && (
               <button
