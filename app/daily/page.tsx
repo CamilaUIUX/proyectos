@@ -603,6 +603,11 @@ export default function DailyPage() {
         setPipMinimized(false)
         pipWindowRef.current = null
       })
+      // Chromium clamps requestWindow's initial size to its own minimum on some
+      // versions, silently ignoring a request this small — resizing explicitly
+      // once the window's content is already in place (same as minimizePip does)
+      // actually takes effect.
+      pipWin.resizeTo(180, 52)
     } catch (err) {
       console.error('No se pudo abrir la ventana flotante:', err)
     }
