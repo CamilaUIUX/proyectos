@@ -373,7 +373,7 @@ export default function DailyPage() {
   const [pipActive, setPipActive] = useState(false)
   const [pipContainer, setPipContainer] = useState<Element | null>(null)
   const [pipMinimized, setPipMinimized] = useState(false)
-  const [pipSupported, setPipSupported] = useState(true)
+  const [pipStatus, setPipStatus] = useState<'ok' | 'insecure' | 'unsupported'>('ok')
   const [editedReport, setEditedReport] = useState<string | null>(null)
   const [lastReportText, setLastReportText] = useState('')
   const [mounted, setMounted] = useState(false)
@@ -422,8 +422,15 @@ export default function DailyPage() {
   }, [edits, muCreated, checkingComponents, artworkUploaded])
 
   useEffect(() => {
+    // Browsers only expose the Document Picture-in-Picture API in a secure context
+    // (HTTPS or localhost). Over plain http:// it is absent no matter the browser, so
+    // distinguish that from "browser doesn't support it" to avoid a misleading message.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPipSupported('documentPictureInPicture' in window)
+    setPipStatus(
+      'documentPictureInPicture' in window ? 'ok'
+        : !window.isSecureContext ? 'insecure'
+        : 'unsupported'
+    )
   }, [])
 
   useEffect(() => {
@@ -533,7 +540,7 @@ export default function DailyPage() {
       pipWindowRef.current?.close()
       return
     }
-    if (!pipSupported) return
+    if (pipStatus !== 'ok') return
     try {
       const pipWin = await (window as any).documentPictureInPicture.requestWindow({
         width: 180,
@@ -612,14 +619,16 @@ export default function DailyPage() {
             )}
             <button
               onClick={openPip}
-              disabled={!pipSupported}
+              disabled={pipStatus !== 'ok'}
               title={
-                !pipSupported
-                  ? 'Ventana flotante no disponible en este navegador (usa Chrome o Edge)'
-                  : pipActive ? 'Cerrar ventana flotante' : 'Abrir ventana flotante'
+                pipStatus === 'insecure'
+                  ? 'La ventana flotante requiere HTTPS. Este sitio se está abriendo por http:// — el navegador bloquea esta función sin candado de seguridad.'
+                  : pipStatus === 'unsupported'
+                    ? 'Ventana flotante no disponible en este navegador (usa Chrome o Edge en computadora)'
+                    : pipActive ? 'Cerrar ventana flotante' : 'Abrir ventana flotante'
               }
               className={`p-1.5 rounded-lg border transition-all duration-200 ${
-                !pipSupported
+                pipStatus !== 'ok'
                   ? 'text-[#444] border-[#222] bg-[#0d0d0d] cursor-not-allowed'
                   : pipActive
                     ? 'text-[#ccc] border-[#444] bg-[#1a1a1a] cursor-pointer'
