@@ -36,38 +36,43 @@ function generateReport(
   artworkUploaded: FileEntry[],
   tomorrowBullets: Bullet[],
   blockerBullets: Bullet[],
-  isFriday: boolean
+  isFriday: boolean,
+  isMonday: boolean
 ): string {
   const tomorrowLabel = isFriday ? 'Monday' : 'Tomorrow'
   const lines: string[] = []
 
   lines.push('What I Did Today:')
   lines.push('')
+  lines.push('Kept an eye on emails and communications')
+  lines.push('Checked proofs for updates')
+  lines.push(isMonday ? 'Attend: Creative/Production Team Meeting' : 'Attend:')
 
   const didLines: string[] = []
   if (edits.length > 0) {
-    didLines.push('EDITS')
+    didLines.push(CATEGORY_META.EDIT.label)
     edits.forEach(f => didLines.push(`\t• ${f.name}`))
   }
   if (muCreated.length > 0) {
     if (didLines.length > 0) didLines.push('')
-    didLines.push('MU CREATED')
+    didLines.push(CATEGORY_META.MU_CREATED.label)
     muCreated.forEach(f => didLines.push(`\t• ${f.name}`))
   }
   if (checkingComponents.length > 0) {
     if (didLines.length > 0) didLines.push('')
-    didLines.push('CHECKING COMPONENT CODES')
+    didLines.push(CATEGORY_META.CHECKING_COMPONENTS.label)
     checkingComponents.forEach(f => didLines.push(`\t• ${f.name}`))
   }
   if (artworkUploaded.length > 0) {
     if (didLines.length > 0) didLines.push('')
-    didLines.push('ARTWORK UPLOADED')
+    didLines.push(CATEGORY_META.ARTWORK_UPLOADED.label)
     artworkUploaded.forEach(f => didLines.push(`\t• ${f.name}`))
   }
   if (didLines.length > 0) {
-    lines.push(...didLines)
     lines.push('')
+    lines.push(...didLines)
   }
+  lines.push('')
 
   lines.push(`What I'll do ${tomorrowLabel}:`)
   tomorrowBullets.filter(b => b.text.trim()).forEach(b => lines.push(`\t• ${b.text}`))
@@ -117,10 +122,37 @@ function BulletSection({ label, bullets, onUpdate, onRemove, onAdd }: {
 }
 
 const CATEGORY_META: Record<Category, { label: string; abbr: string }> = {
-  EDIT:                 { label: 'EDITS',                   abbr: 'E' },
-  MU_CREATED:           { label: 'MU CREATED',              abbr: 'M' },
-  CHECKING_COMPONENTS:  { label: 'CHECKING COMPONENT CODES', abbr: 'C' },
-  ARTWORK_UPLOADED:     { label: 'ARTWORK UPLOADED',         abbr: 'A' },
+  EDIT:                 { label: 'Edits',                     abbr: 'E' },
+  MU_CREATED:           { label: 'MockUp Created',            abbr: 'M' },
+  CHECKING_COMPONENTS:  { label: 'Checking Component Codes',  abbr: 'C' },
+  ARTWORK_UPLOADED:     { label: 'Artwork Output and Upload', abbr: 'A' },
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// Bold in the copied report has to come from real <strong> markup, not a Unicode
+// "fake bold" character set — those swap in a fixed lookalike glyph set that ignores
+// whatever font the paste target (Slack, Gmail, Notion…) is using. Writing both
+// text/html and text/plain to the clipboard lets rich-text targets render bold in
+// their own font while plain-text targets still get a clean fallback.
+function reportTextToHtml(text: string): string {
+  const boldLines = new Set([
+    'What I Did Today:',
+    "What I'll do Tomorrow:",
+    "What I'll do Monday:",
+    'Blockers/Issues:',
+    CATEGORY_META.EDIT.label,
+    CATEGORY_META.MU_CREATED.label,
+    CATEGORY_META.CHECKING_COMPONENTS.label,
+    CATEGORY_META.ARTWORK_UPLOADED.label,
+  ])
+  const body = text
+    .split('\n')
+    .map(line => boldLines.has(line) ? `<strong>${escapeHtml(line)}</strong>` : escapeHtml(line))
+    .join('\n')
+  return `<div style="white-space:pre-wrap">${body}</div>`
 }
 
 function DailyPipView({
@@ -394,6 +426,7 @@ export default function DailyPage() {
   }, [])
 
   const isFriday = mounted && new Date().getDay() === 5
+  const isMonday = mounted && new Date().getDay() === 1
 
   useEffect(() => {
     try {
@@ -438,8 +471,8 @@ export default function DailyPage() {
   }, [])
 
   const reportText = useMemo(
-    () => generateReport(edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets, isFriday),
-    [edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets, isFriday]
+    () => generateReport(edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets, isFriday, isMonday),
+    [edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets, isFriday, isMonday]
   )
 
   // Reset manual edits when the generated report changes (new files / bullet updates).
@@ -515,12 +548,25 @@ export default function DailyPage() {
     setRemovingFileIds(new Set())
   }
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(displayText).then(() => {
+  const handleCopy = useCallback(async () => {
+    const markCopied = () => {
       setCopied(true)
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
       copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
-    }).catch(() => {
+    }
+    try {
+      if (typeof ClipboardItem !== 'undefined') {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/plain': new Blob([displayText], { type: 'text/plain' }),
+            'text/html': new Blob([reportTextToHtml(displayText)], { type: 'text/html' }),
+          }),
+        ])
+      } else {
+        await navigator.clipboard.writeText(displayText)
+      }
+      markCopied()
+    } catch {
       const el = document.createElement('textarea')
       el.value = displayText
       el.style.position = 'fixed'
@@ -529,10 +575,8 @@ export default function DailyPage() {
       el.select()
       document.execCommand('copy')
       document.body.removeChild(el)
-      setCopied(true)
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
-      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
-    })
+      markCopied()
+    }
   }, [displayText])
 
   const openPip = async () => {
@@ -605,6 +649,7 @@ export default function DailyPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
             <p className="text-[10px] font-bold tracking-[0.4em] uppercase text-[#666]">Hub</p>
+            <p className="text-xs italic uppercase text-[#555]">work can be fun</p>
             <h1 className="text-3xl font-black tracking-tight text-[#f0f0f0]">Daily</h1>
             <p className="text-sm text-[#666]">Genera tu reporte de actividad diaria</p>
           </div>
@@ -815,28 +860,28 @@ export default function DailyPage() {
                 onClick={() => confirmCategory('EDIT')}
                 className="w-full py-3.5 rounded-xl bg-[#161616] border border-[#2a2a2a] hover:border-[#444] hover:bg-[#1e1e1e] active:scale-[0.99] transition-all cursor-pointer text-left px-4 group"
               >
-                <span className="block text-sm font-black text-[#e0e0e0] group-hover:text-[#f0f0f0] transition-colors">EDIT</span>
+                <span className="block text-sm font-black text-[#e0e0e0] group-hover:text-[#f0f0f0] transition-colors">Edits</span>
                 <span className="block text-[11px] text-[#666] mt-0.5">Archivo que ya existía · se estuvo trabajando</span>
               </button>
               <button
                 onClick={() => confirmCategory('MU_CREATED')}
                 className="w-full py-3.5 rounded-xl bg-[#161616] border border-[#2a2a2a] hover:border-[#444] hover:bg-[#1e1e1e] active:scale-[0.99] transition-all cursor-pointer text-left px-4 group"
               >
-                <span className="block text-sm font-black text-[#e0e0e0] group-hover:text-[#f0f0f0] transition-colors">MU CREATED</span>
+                <span className="block text-sm font-black text-[#e0e0e0] group-hover:text-[#f0f0f0] transition-colors">MockUp Created</span>
                 <span className="block text-[11px] text-[#666] mt-0.5">Archivo nuevo · creado desde cero</span>
               </button>
               <button
                 onClick={() => confirmCategory('CHECKING_COMPONENTS')}
                 className="w-full py-3.5 rounded-xl bg-[#161616] border border-[#2a2a2a] hover:border-[#444] hover:bg-[#1e1e1e] active:scale-[0.99] transition-all cursor-pointer text-left px-4 group"
               >
-                <span className="block text-sm font-black text-[#e0e0e0] group-hover:text-[#f0f0f0] transition-colors">CHECKING COMPONENT CODES</span>
+                <span className="block text-sm font-black text-[#e0e0e0] group-hover:text-[#f0f0f0] transition-colors">Checking Component Codes</span>
                 <span className="block text-[11px] text-[#666] mt-0.5">Revisión de códigos de componente</span>
               </button>
               <button
                 onClick={() => confirmCategory('ARTWORK_UPLOADED')}
                 className="w-full py-3.5 rounded-xl bg-[#161616] border border-[#2a2a2a] hover:border-[#444] hover:bg-[#1e1e1e] active:scale-[0.99] transition-all cursor-pointer text-left px-4 group"
               >
-                <span className="block text-sm font-black text-[#e0e0e0] group-hover:text-[#f0f0f0] transition-colors">ARTWORK UPLOADED</span>
+                <span className="block text-sm font-black text-[#e0e0e0] group-hover:text-[#f0f0f0] transition-colors">Artwork Output and Upload</span>
                 <span className="block text-[11px] text-[#666] mt-0.5">Arte subido al sistema</span>
               </button>
             </div>
