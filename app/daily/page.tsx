@@ -654,10 +654,13 @@ export default function DailyPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <p className="text-[10px] font-bold tracking-[0.4em] uppercase text-[#666]">Hub</p>
-            <p className="text-xs italic uppercase text-[#555]">work can be fun</p>
+            <p className="text-xs uppercase leading-relaxed text-[#555]">
+              BIENVENIDOS A TRABAJAJAJAR.
+              <br />
+              UN LUGAR PARA HACER TUS TAREAS DEL DÍA A DÍA MÁS FÁCILES, RAPIDAS Y DIVERTIDAS
+            </p>
             <h1 className="text-3xl font-black tracking-tight text-[#f0f0f0]">Daily</h1>
-            <p className="text-sm text-[#666]">Genera tu reporte de actividad diaria</p>
+            <p className="text-sm text-white">Genera tu reporte de actividad diaria</p>
           </div>
           <div className="flex items-center gap-2 mt-1 shrink-0">
             {hasFiles && (
