@@ -6,9 +6,44 @@ propia carpeta bajo `app/`.
 Incluye por ahora:
 - **Daily** (`app/daily/`) — generador de reporte de actividad diaria.
   Guarda en `localStorage` (copia local instantánea) y, además, en Supabase:
-  cada persona tiene su cuenta y su historial de reportes.
+  cada persona tiene su cuenta, su historial y su reporte semanal.
 
 La portada (`/`) es pública. `/daily` pide iniciar sesión.
+
+## Cómo se guarda el trabajo
+
+- **Autoguardado** a segundo y medio de dejar de escribir. Un reporte por
+  persona por día: guardar de nuevo el mismo día actualiza esa misma fila.
+- **Limpiar** guarda primero y después vacía solo la pantalla. Lo guardado se
+  conserva en el historial: el botón no borra nada de la base.
+- **Cierre a medianoche**: a las 00:00 de la zona horaria del navegador se
+  guarda el día y la pantalla arranca en blanco. Si el navegador estaba
+  cerrado, la marca de fecha en `localStorage` hace lo mismo al volver.
+- La copia local va en `daily_files:<id de usuario>`, **una por persona**, para
+  que en un computador compartido nadie herede los archivos de quien usó la
+  app antes.
+
+## Historial y reporte semanal
+
+- **Historial** (`app/daily/HistoryModal.tsx`) — lista de días guardados. Cada
+  daily se **edita ahí mismo** y se guarda con su botón. Los reportes de otras
+  personas (solo visibles para admins) salen en modo lectura.
+- **Semanal** (`app/daily/WeeklyModal.tsx`) — junta todos los archivos de la
+  semana (siempre de lunes a domingo) y los agrupa **por cliente**, con el tipo
+  de trabajo al final de cada línea:
+
+  ```
+  SOUWI
+      • SOUWI_1026_Blessings_128_M.pdf — Edits
+      • SOUWI_1026_ThanksgivingForAll_286_D.pdf — MockUp Created
+  ```
+
+  El **cliente** es el prefijo del nombre del archivo: lo que va antes del
+  primer `_`, `-` o espacio (`SOUWI_1026_...` → `SOUWI`). La lógica está en
+  `lib/reportUtils.ts`.
+
+  Se puede editar y guardar. Una vez guardado, al reabrirlo manda el texto
+  editado; **Regenerar** lo reconstruye desde los dailys de esa semana.
 
 ## Cuentas y permisos
 
@@ -16,9 +51,10 @@ La portada (`/`) es pública. `/daily` pide iniciar sesión.
   puntuales listadas en `supabase/schema.sql` (se valida en la base de datos,
   no en el navegador). Para autorizar otro correo suelto, agregarlo al array
   `extra_allowed` de ese archivo y volver a ejecutarlo.
-- Cada persona ve **solo sus propios reportes**. Quien tenga `role = 'admin'`
-  en la tabla `profiles` ve los de todo el equipo (solo lectura: nadie puede
-  editar ni borrar reportes ajenos).
+- Cada persona ve **solo sus propios reportes** (dailys y semanales). Quien
+  tenga `role = 'admin'` en la tabla `profiles` ve los de todo el equipo, en
+  solo lectura: nadie puede editar ni borrar reportes ajenos, ni siquiera un
+  admin.
 - Para hacer admin a alguien: Supabase → Table Editor → `profiles` → cambiar
   `member` por `admin`. No se puede hacer desde la app, a propósito.
 

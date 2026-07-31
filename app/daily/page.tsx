@@ -23,6 +23,12 @@ function uid(): string {
 function makeBullet(text: string): Bullet { return { id: uid(), text } }
 function makeEntry(name: string): FileEntry { return { id: uid(), name } }
 
+// Also reused by the midnight rollover, which resets the day to these same defaults.
+function defaultTomorrowBullets(): Bullet[] {
+  return [makeBullet('Keep working on pending tasks'), makeBullet('Meeting')]
+}
+function defaultBlockerBullets(): Bullet[] { return [makeBullet('None')] }
+
 function todayLabel(): string {
   const d = new Date()
   const dd = String(d.getDate()).padStart(2, '0')
@@ -121,13 +127,6 @@ function BulletSection({ label, bullets, onUpdate, onRemove, onAdd }: {
       </button>
     </div>
   )
-}
-
-const CATEGORY_META: Record<Category, { label: string; abbr: string }> = {
-  EDIT:                 { label: 'Edits',                     abbr: 'E' },
-  MU_CREATED:           { label: 'MockUp Created',            abbr: 'M' },
-  CHECKING_COMPONENTS:  { label: 'Checking Component Codes',  abbr: 'C' },
-  ARTWORK_UPLOADED:     { label: 'Artwork Output and Upload', abbr: 'A' },
 }
 
 function escapeHtml(text: string): string {
@@ -379,7 +378,9 @@ function copyStylesToWindow(target: Window) {
   target.document.body.style.cssText = 'background:#000;margin:0;height:100%'
 }
 
-const STORAGE_KEY = 'daily_files'
+// Scoped per user: a shared key would hand one person's files to whoever logs in next
+// on the same browser, and the autosave would then file them under that second account.
+function storageKey(userId: string): string { return `daily_files:${userId}` }
 
 export default function DailyPage() {
   const [edits, setEdits] = useState<FileEntry[]>([])
@@ -390,13 +391,8 @@ export default function DailyPage() {
   const [pendingBatch, setPendingBatch] = useState<PendingBatch | null>(null)
   const [pendingBatchSource, setPendingBatchSource] = useState<'main' | 'pip'>('main')
   const [isDragging, setIsDragging] = useState(false)
-  const [tomorrowBullets, setTomorrowBullets] = useState<Bullet[]>(() => [
-    makeBullet('Keep working on pending tasks'),
-    makeBullet('Meeting'),
-  ])
-  const [blockerBullets, setBlockerBullets] = useState<Bullet[]>(() => [
-    makeBullet('None'),
-  ])
+  const [tomorrowBullets, setTomorrowBullets] = useState<Bullet[]>(defaultTomorrowBullets)
+  const [blockerBullets, setBlockerBullets] = useState<Bullet[]>(defaultBlockerBullets)
   const [copied, setCopied] = useState(false)
   const [pipActive, setPipActive] = useState(false)
   const [pipContainer, setPipContainer] = useState<Element | null>(null)
@@ -408,6 +404,7 @@ export default function DailyPage() {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [showWeekly, setShowWeekly] = useState(false)
   // Starts already "loaded" when Supabase isn't configured, so the autosave below stays off
   // instead of waiting forever for a fetch that will never run.
   const [cloudLoaded, setCloudLoaded] = useState(!supabase)
@@ -421,6 +418,9 @@ export default function DailyPage() {
   // Signature of what is already stored in Supabase, so the autosave can skip writing
   // content that is byte-for-byte what it just read back.
   const savedSignatureRef = useRef<string | null>(null)
+  // Set as soon as the user touches anything, so a slow cloud response can't land on top
+  // of files they already started dropping in.
+  const userTouchedRef = useRef(false)
 
   // `mounted` starts false on both server and the first client render, so the two match
   // exactly. Only after that first render do we switch to the browser's real date — this
@@ -437,9 +437,12 @@ export default function DailyPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
+      const raw = localStorage.getItem(storageKey(user.id))
       if (raw) {
         const parsed = JSON.parse(raw)
+        // Yesterday's leftovers must not bleed into today: the day rolls over even if the
+        // browser was closed at midnight, so anything stamped with another date is dropped.
+        if (parsed.date !== localDateKey()) return
         // localStorage doesn't exist during server-side rendering, so this data can only
         // be loaded after mount, in an effect — not during the initial render.
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -449,7 +452,7 @@ export default function DailyPage() {
         if (Array.isArray(parsed.artworkUploaded)) setArtworkUploaded(parsed.artworkUploaded)
       }
     } catch {}
-  }, [])
+  }, [user.id])
 
   useEffect(() => {
     if (!didLoad.current) {
@@ -457,9 +460,11 @@ export default function DailyPage() {
       return
     }
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ edits, muCreated, checkingComponents, artworkUploaded }))
+      localStorage.setItem(storageKey(user.id), JSON.stringify({
+        date: localDateKey(), edits, muCreated, checkingComponents, artworkUploaded,
+      }))
     } catch {}
-  }, [edits, muCreated, checkingComponents, artworkUploaded])
+  }, [edits, muCreated, checkingComponents, artworkUploaded, user.id])
 
   useEffect(() => {
     // Browsers only expose the Document Picture-in-Picture API in a secure context
@@ -519,7 +524,9 @@ export default function DailyPage() {
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return
-        if (data?.data) {
+        // If the user already started dropping files while this request was in flight,
+        // their work wins — the response is stale by then.
+        if (data?.data && !userTouchedRef.current) {
           applyReportData(data.data as ReportData)
           savedSignatureRef.current = JSON.stringify({ content: data.content, data: data.data })
         }
@@ -528,48 +535,89 @@ export default function DailyPage() {
     return () => { cancelled = true }
   }, [user.id, applyReportData])
 
-  // Autosave, debounced so it writes once you stop typing rather than on every keystroke.
+  // Mirror of the newest values, so timers and handlers can save the current state without
+  // being re-created (and without capturing stale values) on every keystroke.
+  const latestRef = useRef({
+    displayText, edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets,
+  })
   useEffect(() => {
-    // Captured locally so the narrowing survives into the async callback below.
+    latestRef.current = {
+      displayText, edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets,
+    }
+  })
+
+  /** Writes today's report immediately. Used by the autosave, by Limpiar and at midnight. */
+  const saveNow = useCallback(async () => {
     const db = supabase
-    if (!db || !cloudLoaded || !hasFiles) return
+    if (!db) return
+    const s = latestRef.current
+    const anyFiles = s.edits.length > 0 || s.muCreated.length > 0
+      || s.checkingComponents.length > 0 || s.artworkUploaded.length > 0
+    if (!anyFiles) return
 
     const payload: ReportData = {
-      edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets,
+      edits: s.edits, muCreated: s.muCreated, checkingComponents: s.checkingComponents,
+      artworkUploaded: s.artworkUploaded, tomorrowBullets: s.tomorrowBullets,
+      blockerBullets: s.blockerBullets,
     }
-    const signature = JSON.stringify({ content: displayText, data: payload })
+    const signature = JSON.stringify({ content: s.displayText, data: payload })
     if (signature === savedSignatureRef.current) return
 
-    const timer = setTimeout(async () => {
-      setSaveState('saving')
-      const { error } = await db.from('daily_reports').upsert(
-        {
-          user_id: user.id,
-          report_date: localDateKey(),
-          content: displayText,
-          data: payload,
-        },
-        { onConflict: 'user_id,report_date' }
-      )
-      if (error) {
-        setSaveState('error')
-        console.error('No se pudo guardar el reporte:', error.message)
-      } else {
-        savedSignatureRef.current = signature
-        setSaveState('saved')
-        setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-      }
-    }, 1500)
+    setSaveState('saving')
+    const { error } = await db.from('daily_reports').upsert(
+      { user_id: user.id, report_date: localDateKey(), content: s.displayText, data: payload },
+      { onConflict: 'user_id,report_date' }
+    )
+    if (error) {
+      setSaveState('error')
+      console.error('No se pudo guardar el reporte:', error.message)
+    } else {
+      savedSignatureRef.current = signature
+      setSaveState('saved')
+      setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+    }
+  }, [user.id])
 
+  // Autosave, debounced so it writes once you stop typing rather than on every keystroke.
+  useEffect(() => {
+    if (!supabase || !cloudLoaded || !hasFiles) return
+    const timer = setTimeout(() => { void saveNow() }, 1500)
     return () => clearTimeout(timer)
   }, [
-    cloudLoaded, hasFiles, displayText, user.id,
+    cloudLoaded, hasFiles, displayText, saveNow,
     edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets,
   ])
+
+  // At local midnight the day is closed: save what is on screen, then start the new day
+  // blank. Covers leaving the tab open overnight; reopening on another day is handled by
+  // the date stamp in localStorage.
+  useEffect(() => {
+    if (!mounted) return
+    let timer: ReturnType<typeof setTimeout>
+    const scheduleRollover = () => {
+      const now = new Date()
+      // A few seconds past midnight, so localDateKey() has certainly ticked over.
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5)
+      timer = setTimeout(async () => {
+        await saveNow()
+        setEdits([]); setMuCreated([]); setCheckingComponents([]); setArtworkUploaded([])
+        setTomorrowBullets(defaultTomorrowBullets())
+        setBlockerBullets(defaultBlockerBullets())
+        setEditedReport(null)
+        savedSignatureRef.current = null
+        userTouchedRef.current = false
+        setSaveState('idle')
+        scheduleRollover()
+      }, nextMidnight.getTime() - now.getTime())
+    }
+    scheduleRollover()
+    return () => clearTimeout(timer)
+  }, [mounted, saveNow])
 
   const handleFiles = useCallback((files: FileList | File[], source: 'main' | 'pip' = 'main') => {
     const names = Array.from(files).map(f => f.name)
     if (names.length === 0) return
+    userTouchedRef.current = true
     setPendingBatch({ files: names })
     setPendingBatchSource(source)
   }, [])
@@ -623,7 +671,10 @@ export default function DailyPage() {
   const removeChecking = (id: string) => removeFileWithAnimation(id, setCheckingComponents)
   const removeArtwork = (id: string) => removeFileWithAnimation(id, setArtworkUploaded)
 
-  const handleClear = () => {
+  // Clearing only empties the screen: the day's report stays in the history. It is saved
+  // first so whatever is on screen is never lost by pressing this.
+  const handleClear = async () => {
+    await saveNow()
     setEdits([])
     setMuCreated([])
     setCheckingComponents([])
@@ -706,15 +757,19 @@ export default function DailyPage() {
     setPipMinimized(false)
   }
 
-  const updateTomorrow = (id: string, text: string) =>
+  const updateTomorrow = (id: string, text: string) => {
+    userTouchedRef.current = true
     setTomorrowBullets(prev => prev.map(b => b.id === id ? { ...b, text } : b))
+  }
   const removeTomorrow = (id: string) =>
     setTomorrowBullets(prev => prev.filter(b => b.id !== id))
   const addTomorrow = () =>
     setTomorrowBullets(prev => [...prev, makeBullet('')])
 
-  const updateBlocker = (id: string, text: string) =>
+  const updateBlocker = (id: string, text: string) => {
+    userTouchedRef.current = true
     setBlockerBullets(prev => prev.map(b => b.id === id ? { ...b, text } : b))
+  }
   const removeBlocker = (id: string) =>
     setBlockerBullets(prev => prev.filter(b => b.id !== id))
   const addBlocker = () =>
@@ -753,6 +808,16 @@ export default function DailyPage() {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
                 <path d="M3 4h18v16H3z" />
                 <path d="M7 9h10M7 13h10M7 17h6" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setShowWeekly(true)}
+              title="Reporte semanal (agrupado por cliente)"
+              className="p-1.5 border border-gray-600 bg-black text-gray-600 hover:bg-gray-600 hover:text-black cursor-pointer"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
+                <path d="M3 4h18v16H3z" />
+                <path d="M3 9h18M8 4v16" />
               </svg>
             </button>
             {hasFiles && (
@@ -1051,12 +1116,9 @@ export default function DailyPage() {
         pipContainer
       )}
 
-      {showHistory && (
-        <HistoryModal
-          onClose={() => setShowHistory(false)}
-          onLoad={data => applyReportData(data)}
-        />
-      )}
+      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
+
+      {showWeekly && <WeeklyModal onClose={() => setShowWeekly(false)} />}
     </div>
   )
 }

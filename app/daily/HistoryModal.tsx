@@ -1,30 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, type DailyReportRow, type ReportData } from '@/lib/supabaseClient'
+import { supabase, type DailyReportRow } from '@/lib/supabaseClient'
+import { formatDateKey } from '@/lib/reportUtils'
 import { useAuth } from '@/app/components/AuthGate'
 
-/** report_date is a plain 'YYYY-MM-DD'; split it rather than using Date, which would
- *  interpret it as UTC midnight and show the previous day in negative timezones. */
-function formatDate(isoDate: string): string {
-  const [y, m, d] = isoDate.split('-')
-  return `${d}/${m}/${y}`
-}
-
-export default function HistoryModal({
-  onClose,
-  onLoad,
-}: {
-  onClose: () => void
-  onLoad: (data: ReportData, date: string) => void
-}) {
+export default function HistoryModal({ onClose }: { onClose: () => void }) {
   const { isAdmin, user } = useAuth()
   const [rows, setRows] = useState<DailyReportRow[]>([])
-  const [selected, setSelected] = useState<DailyReportRow | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [personFilter, setPersonFilter] = useState<string>('all')
-  const [copied, setCopied] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   useEffect(() => {
     if (!supabase) return
@@ -43,6 +32,32 @@ export default function HistoryModal({
     return () => { cancelled = true }
   }, [])
 
+  const selected = rows.find(r => r.id === selectedId) ?? null
+  // Only your own reports are editable — RLS would reject the write anyway, so don't offer it.
+  const canEdit = selected?.user_id === user.id
+
+  const openReport = (row: DailyReportRow) => {
+    setSelectedId(row.id)
+    setDraft(row.content)
+    setSaveState('idle')
+  }
+
+  const handleSave = async () => {
+    if (!supabase || !selected || !canEdit) return
+    setSaveState('saving')
+    const { error } = await supabase
+      .from('daily_reports')
+      .update({ content: draft })
+      .eq('id', selected.id)
+    if (error) {
+      setSaveState('error')
+      console.error('No se pudo guardar el cambio:', error.message)
+    } else {
+      setRows(prev => prev.map(r => r.id === selected.id ? { ...r, content: draft } : r))
+      setSaveState('saved')
+    }
+  }
+
   // Only admins ever receive other people's rows, so this list is empty for everyone else.
   const people = Array.from(
     new Set(rows.filter(r => r.user_id !== user.id).map(r => r.profiles?.email ?? r.user_id))
@@ -54,19 +69,12 @@ export default function HistoryModal({
       ? rows.filter(r => r.user_id === user.id)
       : rows.filter(r => (r.profiles?.email ?? r.user_id) === personFilter)
 
-  const handleCopy = async () => {
-    if (!selected) return
-    try {
-      await navigator.clipboard.writeText(selected.content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch { /* clipboard blocked (e.g. no HTTPS) — the text stays selectable on screen */ }
-  }
+  const dirty = selected != null && draft !== selected.content
 
   return (
     <div className="daily-overlay fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="daily-modal pixel-frame bg-black border border-white w-full max-w-2xl max-h-[85vh] flex flex-col gap-3 p-4"
+        className="daily-modal pixel-frame bg-black border border-white w-full max-w-3xl h-[85vh] flex flex-col gap-3 p-4"
         onClick={e => e.stopPropagation()}
       >
         <span className="corner-tl" />
@@ -84,7 +92,7 @@ export default function HistoryModal({
             <span className="text-[10px] uppercase text-gray-600">Ver:</span>
             <select
               value={personFilter}
-              onChange={e => { setPersonFilter(e.target.value); setSelected(null) }}
+              onChange={e => { setPersonFilter(e.target.value); setSelectedId(null) }}
               className="bg-black border border-white text-white text-[11px] px-2 py-1 outline-none cursor-pointer"
             >
               <option value="all">Todos</option>
@@ -104,19 +112,18 @@ export default function HistoryModal({
 
         {visible.length > 0 && (
           <div className="flex-1 min-h-0 grid sm:grid-cols-[minmax(0,14rem)_1fr] gap-3">
-            {/* Lista de fechas */}
             <div className="overflow-y-auto border border-gray-600 flex flex-col">
               {visible.map(r => {
-                const isSel = selected?.id === r.id
+                const isSel = selectedId === r.id
                 return (
                   <button
                     key={r.id}
-                    onClick={() => setSelected(r)}
+                    onClick={() => openReport(r)}
                     className={`text-left px-3 py-2 border-b border-gray-600 last:border-b-0 cursor-pointer ${
                       isSel ? 'bg-white text-black' : 'text-white hover:bg-gray-600 hover:text-black'
                     }`}
                   >
-                    <span className="block text-[11px] font-bold">{formatDate(r.report_date)}</span>
+                    <span className="block text-[11px] font-bold">{formatDateKey(r.report_date)}</span>
                     {isAdmin && r.user_id !== user.id && (
                       <span className="block text-[9px] opacity-70 truncate">{r.profiles?.email ?? r.user_id}</span>
                     )}
@@ -125,25 +132,38 @@ export default function HistoryModal({
               })}
             </div>
 
-            {/* Detalle */}
             <div className="min-h-0 flex flex-col gap-2">
               {selected ? (
                 <>
-                  <pre className="flex-1 overflow-auto border border-gray-600 p-3 text-[11px] text-white whitespace-pre-wrap leading-relaxed">
-                    {selected.content || '(vacío)'}
-                  </pre>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={handleCopy} className="pixel-btn px-3 py-1.5 text-[11px] font-bold uppercase cursor-pointer">
-                      {copied ? 'Copiado' : 'Copiar'}
-                    </button>
-                    {selected.user_id === user.id && selected.data && (
-                      <button
-                        onClick={() => { onLoad(selected.data as ReportData, selected.report_date); onClose() }}
-                        className="text-[11px] uppercase text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1.5 cursor-pointer"
-                        title="Trae ese día al editor para seguir trabajándolo"
-                      >
-                        Cargar en el editor
-                      </button>
+                  <textarea
+                    value={draft}
+                    onChange={e => { setDraft(e.target.value); setSaveState('idle') }}
+                    readOnly={!canEdit}
+                    spellCheck={false}
+                    className={`flex-1 min-h-0 border border-gray-600 p-3 text-[11px] text-white bg-black font-mono whitespace-pre leading-relaxed resize-none outline-none focus:border-white ${
+                      canEdit ? '' : 'opacity-70 cursor-not-allowed'
+                    }`}
+                  />
+                  <div className="flex items-center gap-3 shrink-0">
+                    {canEdit ? (
+                      <>
+                        <button
+                          onClick={handleSave}
+                          disabled={!dirty || saveState === 'saving'}
+                          className="pixel-btn px-3 py-1.5 text-[11px] font-bold uppercase cursor-pointer disabled:dither"
+                        >
+                          {saveState === 'saving' ? 'Guardando...' : 'Guardar cambios'}
+                        </button>
+                        <span className="text-[10px] uppercase text-gray-600">
+                          {saveState === 'saved' && !dirty && 'Guardado'}
+                          {saveState === 'error' && 'No se pudo guardar'}
+                          {dirty && saveState !== 'saving' && 'Sin guardar'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[10px] uppercase text-gray-600">
+                        Reporte de otra persona · solo lectura
+                      </span>
                     )}
                   </div>
                 </>
