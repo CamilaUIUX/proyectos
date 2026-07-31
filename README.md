@@ -1,12 +1,26 @@
 # Hub
 
-Mini-hub de mini-apps, independiente de Acero Hub. Sin login, sin base de
-datos, sin variables de entorno — cada mini-app vive en su propia carpeta
-bajo `app/`.
+Mini-hub de mini-apps, independiente de Acero Hub. Cada mini-app vive en su
+propia carpeta bajo `app/`.
 
 Incluye por ahora:
 - **Daily** (`app/daily/`) — generador de reporte de actividad diaria.
-  Guarda todo en `localStorage` del navegador, no usa servidor para nada.
+  Guarda en `localStorage` (copia local instantánea) y, además, en Supabase:
+  cada persona tiene su cuenta y su historial de reportes.
+
+La portada (`/`) es pública. `/daily` pide iniciar sesión.
+
+## Cuentas y permisos
+
+- Registro **solo para correos `@connaxis.com`**, más las excepciones
+  puntuales listadas en `supabase/schema.sql` (se valida en la base de datos,
+  no en el navegador). Para autorizar otro correo suelto, agregarlo al array
+  `extra_allowed` de ese archivo y volver a ejecutarlo.
+- Cada persona ve **solo sus propios reportes**. Quien tenga `role = 'admin'`
+  en la tabla `profiles` ve los de todo el equipo (solo lectura: nadie puede
+  editar ni borrar reportes ajenos).
+- Para hacer admin a alguien: Supabase → Table Editor → `profiles` → cambiar
+  `member` por `admin`. No se puede hacer desde la app, a propósito.
 
 ## Cómo agregar otra mini-app después
 
@@ -14,17 +28,31 @@ Incluye por ahora:
    si necesita algo propio, como estilos o animaciones específicas).
 2. Agregarla al arreglo `MINI_APPS` en `app/page.tsx` para que aparezca en
    la página de inicio.
-3. Si esa mini-app sí necesita base de datos/login, ese es un tema aparte —
-   este proyecto hoy no trae nada de eso armado.
+3. Si esa mini-app necesita login, envolver sus `children` en `<AuthGate>`
+   dentro de su `layout.tsx`, igual que hace `app/daily/layout.tsx`.
 
-## Desarrollo local
+## Puesta en marcha (primera vez)
 
 ```bash
 npm install
-npm run dev
 ```
 
-Abre `http://localhost:3000`.
+1. **Supabase → Settings → API**: copiar *Project URL* y *anon key* en el
+   archivo `.env.local` (ver `NEXT_PUBLIC_SUPABASE_URL` y
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Ese archivo no se sube a git.
+2. **Supabase → SQL Editor**: pegar y ejecutar `supabase/schema.sql`. Crea
+   las tablas, los permisos (RLS) y la regla del dominio de correo.
+3. **Supabase → Authentication → Providers**: dejar *Email* activado.
+4. `npm run dev` y abrir `http://localhost:3000`.
+
+Para producción hay que cargar esas mismas dos variables en **Vercel →
+Settings → Environment Variables** y volver a desplegar.
+
+> **HTTPS es obligatorio en producción.** Con login, las contraseñas y las
+> sesiones viajan en cada petición: sin certificado SSL van sin cifrar y
+> pueden interceptarse. La ventana flotante (Picture-in-Picture) tampoco
+> funciona sin HTTPS, porque el navegador solo la habilita en contextos
+> seguros. En `localhost` no aplica: el navegador ya lo considera seguro.
 
 ## Deploy en Vercel (paso a paso)
 

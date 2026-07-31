@@ -19,7 +19,7 @@ export default function HomePage() {
           <span className="corner-tl" />
           <span className="corner-tr" />
           <p className="text-xs tracking-[0.3em] uppercase text-white">Hub // 001</p>
-          <p className="text-xs tracking-[0.3em] uppercase text-white">///</p>
+          <p className="text-xs tracking-[0.3em] uppercase text-white">{'///'}</p>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -35,7 +35,7 @@ export default function HomePage() {
               className="group flex flex-col gap-2 bg-black border border-white hover:bg-white p-6 transition-none"
             >
               <h2 className="text-lg font-bold text-white group-hover:text-black">
-                //{app.name.toUpperCase()}_
+                {'//'}{app.name.toUpperCase()}_
               </h2>
               <p className="text-sm text-white group-hover:text-black">{app.description}</p>
             </Link>

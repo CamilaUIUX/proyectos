@@ -3,8 +3,11 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
-
-type Category = 'EDIT' | 'MU_CREATED' | 'CHECKING_COMPONENTS' | 'ARTWORK_UPLOADED'
+import { supabase, localDateKey, type ReportData } from '@/lib/supabaseClient'
+import { CATEGORY_META, MONTHS, type Category } from '@/lib/reportUtils'
+import { useAuth } from '@/app/components/AuthGate'
+import HistoryModal from './HistoryModal'
+import WeeklyModal from './WeeklyModal'
 
 interface FileEntry { id: string; name: string }
 interface Bullet { id: string; text: string }
@@ -19,8 +22,6 @@ function uid(): string {
 }
 function makeBullet(text: string): Bullet { return { id: uid(), text } }
 function makeEntry(name: string): FileEntry { return { id: uid(), name } }
-
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 function todayLabel(): string {
   const d = new Date()
@@ -404,11 +405,22 @@ export default function DailyPage() {
   const [editedReport, setEditedReport] = useState<string | null>(null)
   const [lastReportText, setLastReportText] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [savedAt, setSavedAt] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  // Starts already "loaded" when Supabase isn't configured, so the autosave below stays off
+  // instead of waiting forever for a fetch that will never run.
+  const [cloudLoaded, setCloudLoaded] = useState(!supabase)
+
+  const { user, isAdmin, signOut } = useAuth()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLoad = useRef(false)
   const pipWindowRef = useRef<Window | null>(null)
+  // Signature of what is already stored in Supabase, so the autosave can skip writing
+  // content that is byte-for-byte what it just read back.
+  const savedSignatureRef = useRef<string | null>(null)
 
   // `mounted` starts false on both server and the first client render, so the two match
   // exactly. Only after that first render do we switch to the browser's real date — this
@@ -478,6 +490,82 @@ export default function DailyPage() {
   }
 
   const displayText = editedReport ?? reportText
+
+  const hasFiles = edits.length > 0 || muCreated.length > 0 || checkingComponents.length > 0 || artworkUploaded.length > 0
+
+  const applyReportData = useCallback((data: ReportData) => {
+    setEdits(data.edits ?? [])
+    setMuCreated(data.muCreated ?? [])
+    setCheckingComponents(data.checkingComponents ?? [])
+    setArtworkUploaded(data.artworkUploaded ?? [])
+    if (Array.isArray(data.tomorrowBullets) && data.tomorrowBullets.length > 0) {
+      setTomorrowBullets(data.tomorrowBullets)
+    }
+    if (Array.isArray(data.blockerBullets) && data.blockerBullets.length > 0) {
+      setBlockerBullets(data.blockerBullets)
+    }
+  }, [])
+
+  // Pull today's report from Supabase. localStorage has already painted the screen by now,
+  // so this only matters when opening the day from a different computer.
+  useEffect(() => {
+    if (!supabase) return
+    let cancelled = false
+    supabase
+      .from('daily_reports')
+      .select('content, data')
+      .eq('user_id', user.id)
+      .eq('report_date', localDateKey())
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        if (data?.data) {
+          applyReportData(data.data as ReportData)
+          savedSignatureRef.current = JSON.stringify({ content: data.content, data: data.data })
+        }
+        setCloudLoaded(true)
+      })
+    return () => { cancelled = true }
+  }, [user.id, applyReportData])
+
+  // Autosave, debounced so it writes once you stop typing rather than on every keystroke.
+  useEffect(() => {
+    // Captured locally so the narrowing survives into the async callback below.
+    const db = supabase
+    if (!db || !cloudLoaded || !hasFiles) return
+
+    const payload: ReportData = {
+      edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets,
+    }
+    const signature = JSON.stringify({ content: displayText, data: payload })
+    if (signature === savedSignatureRef.current) return
+
+    const timer = setTimeout(async () => {
+      setSaveState('saving')
+      const { error } = await db.from('daily_reports').upsert(
+        {
+          user_id: user.id,
+          report_date: localDateKey(),
+          content: displayText,
+          data: payload,
+        },
+        { onConflict: 'user_id,report_date' }
+      )
+      if (error) {
+        setSaveState('error')
+        console.error('No se pudo guardar el reporte:', error.message)
+      } else {
+        savedSignatureRef.current = signature
+        setSaveState('saved')
+        setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+      }
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [
+    cloudLoaded, hasFiles, displayText, user.id,
+    edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets,
+  ])
 
   const handleFiles = useCallback((files: FileList | File[], source: 'main' | 'pip' = 'main') => {
     const names = Array.from(files).map(f => f.name)
@@ -632,8 +720,6 @@ export default function DailyPage() {
   const addBlocker = () =>
     setBlockerBullets(prev => [...prev, makeBullet('')])
 
-  const hasFiles = edits.length > 0 || muCreated.length > 0 || checkingComponents.length > 0 || artworkUploaded.length > 0
-
   const allCategories: { cat: Category; files: FileEntry[]; onRemove: (id: string) => void }[] = [
     { cat: 'EDIT',                files: edits,               onRemove: removeEdit },
     { cat: 'MU_CREATED',          files: muCreated,           onRemove: removeMu },
@@ -659,6 +745,16 @@ export default function DailyPage() {
               <p className="text-sm text-white">Genera tu reporte de actividad diaria</p>
             </div>
             <div className="flex items-center gap-2 mt-1 shrink-0">
+            <button
+              onClick={() => setShowHistory(true)}
+              title={isAdmin ? 'Historial (ves el de todo el equipo)' : 'Ver mis reportes guardados'}
+              className="p-1.5 border border-gray-600 bg-black text-gray-600 hover:bg-gray-600 hover:text-black cursor-pointer"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
+                <path d="M3 4h18v16H3z" />
+                <path d="M7 9h10M7 13h10M7 17h6" />
+              </svg>
+            </button>
             {hasFiles && (
               <button
                 onClick={handleClear}
@@ -699,6 +795,26 @@ export default function DailyPage() {
               </svg>
             </button>
           </div>
+          </div>
+
+          {/* Sesión y estado de guardado */}
+          <div className="flex items-center justify-between gap-3 text-[10px] uppercase">
+            <span className="text-gray-600 truncate">
+              {user.email}{isAdmin && ' · admin'}
+            </span>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="text-gray-600">
+                {saveState === 'saving' && 'Guardando...'}
+                {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
+                {saveState === 'error' && 'No se pudo guardar'}
+              </span>
+              <button
+                onClick={signOut}
+                className="text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1 cursor-pointer"
+              >
+                Salir
+              </button>
+            </div>
           </div>
         </div>
 
@@ -933,6 +1049,13 @@ export default function DailyPage() {
           onRestore={restorePip}
         />,
         pipContainer
+      )}
+
+      {showHistory && (
+        <HistoryModal
+          onClose={() => setShowHistory(false)}
+          onLoad={data => applyReportData(data)}
+        />
       )}
     </div>
   )
