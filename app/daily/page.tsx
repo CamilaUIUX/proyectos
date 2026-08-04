@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import Image from 'next/image'
 import { supabase, localDateKey, type ReportData } from '@/lib/supabaseClient'
 import { CATEGORY_META, MONTHS, type Category } from '@/lib/reportUtils'
 import { useAuth } from '@/app/components/AuthGate'
@@ -100,27 +99,30 @@ function BulletSection({ label, bullets, onUpdate, onRemove, onAdd }: {
   onAdd: () => void
 }) {
   return (
-    <div className="flex flex-col gap-2.5">
-      <p className="text-[11px] font-bold text-white tracking-wide uppercase">{label}</p>
-      <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-3">
+      <p className="ed-label">{label}</p>
+      <div className="flex flex-col gap-2">
         {bullets.map(b => (
-          <div key={b.id} className="daily-in flex items-center gap-2">
-            <span className="text-white text-sm shrink-0 select-none">&gt;</span>
+          <div key={b.id} className="daily-in flex items-center gap-3">
             <input
               type="text" value={b.text} onChange={e => onUpdate(b.id, e.target.value)}
-              className="flex-1 bg-black border border-white px-3 py-2 text-sm text-white placeholder-white/40 outline-none focus:bg-white focus:text-black cursor-text"
+              className="ed-input flex-1"
               placeholder="Escribe aquí..."
             />
-            <button onClick={() => onRemove(b.id)} className="text-gray-600 hover:bg-gray-600 hover:text-black border border-transparent hover:border-gray-600 transition-none cursor-pointer shrink-0 p-1">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+            <button
+              onClick={() => onRemove(b.id)}
+              title="Quitar"
+              className="ed-icon-btn shrink-0 !w-8 !h-8 border-transparent hover:border-[var(--line)]"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18M6 6l12 12" />
               </svg>
             </button>
           </div>
         ))}
       </div>
-      <button onClick={onAdd} className="self-start flex items-center gap-1.5 text-[11px] text-gray-600 hover:bg-gray-600 hover:text-black transition-none cursor-pointer px-1.5 py-1 border border-gray-600 uppercase">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+      <button onClick={onAdd} className="ed-btn ed-btn--quiet self-start">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 5v14M5 12h14" />
         </svg>
         Add item
@@ -207,26 +209,26 @@ function DailyPipView({
         onDragLeave={e => {
           if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false)
         }}
-        className={`h-screen flex items-center px-3 gap-2 select-none overflow-hidden border ${
-          isDragging ? 'bg-white border-white' : 'bg-black border-white'
+        className={`h-screen flex items-center px-3 gap-3 select-none overflow-hidden border-b transition-colors duration-200 ${
+          isDragging ? 'bg-[var(--accent)] border-[var(--ink)]' : 'bg-[var(--bg)] border-[var(--line)]'
         }`}
       >
         {isDragging ? (
           <>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter" className="text-black shrink-0">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ink)] shrink-0">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="17 8 12 3 7 8" />
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
-            <span className="text-[11px] font-bold text-black tracking-wide shrink-0 uppercase">Suelta aquí</span>
+            <span className="ed-label !text-[var(--ink)] shrink-0">Suelta aquí</span>
           </>
         ) : (
           <>
-            <span className="text-[11px] font-bold text-white tracking-wide shrink-0 uppercase">Daily</span>
+            <span className="ed-label shrink-0">Daily</span>
             {hasFiles && (
-              <div className="flex items-center gap-1 text-[10px] text-gray-600 font-mono shrink-0">
+              <div className="flex items-center gap-1.5 text-[10px] text-[var(--ink-2)] font-[family-name:var(--font-mono)] shrink-0">
                 {counts.map((c, i) => (
-                  <span key={c.cat}>{i > 0 && <span className="text-gray-600 mr-1">·</span>}{c.files.length}{CATEGORY_META[c.cat].abbr}</span>
+                  <span key={c.cat}>{i > 0 && <span className="text-[var(--ink-3)] mr-1.5">/</span>}{c.files.length}{CATEGORY_META[c.cat].abbr}</span>
                 ))}
               </div>
             )}
@@ -234,10 +236,10 @@ function DailyPipView({
         )}
         <button
           onClick={onRestore}
-          className={`ml-auto border px-2 py-1 cursor-pointer shrink-0 ${isDragging ? 'border-black text-black hover:bg-black hover:text-white' : 'border-gray-600 text-gray-600 hover:bg-gray-600 hover:text-black'}`}
+          className="ed-icon-btn ml-auto shrink-0 !w-7 !h-7"
           title="Restaurar"
         >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 15l-6-6-6 6" />
           </svg>
         </button>
@@ -246,17 +248,13 @@ function DailyPipView({
   }
 
   return (
-    <div className="h-screen bg-black flex flex-col p-4 gap-3 overflow-hidden">
+    <div className="h-screen bg-[var(--bg)] flex flex-col p-4 gap-3 overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between shrink-0 border-b border-white pb-2">
-        <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-white">Daily</span>
-        <button
-          onClick={onMinimize}
-          className="flex items-center gap-1.5 text-[10px] text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1 cursor-pointer shrink-0 uppercase"
-          title="Minimizar"
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+      <div className="flex items-center justify-between shrink-0 border-b border-[var(--line)] pb-2.5">
+        <span className="ed-label">Daily</span>
+        <button onClick={onMinimize} className="ed-btn ed-btn--quiet !py-1 !px-2" title="Minimizar">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14" />
           </svg>
           <span>Min</span>
@@ -274,17 +272,17 @@ function DailyPipView({
         onDragLeave={e => {
           if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false)
         }}
-        className={`shrink-0 border-2 border-dashed flex flex-col items-center justify-center gap-2 select-none ${
+        className={`shrink-0 rounded-[var(--radius)] border border-dashed flex flex-col items-center justify-center gap-2 select-none transition-colors duration-200 ${
           hasFiles ? 'h-20' : 'flex-1'
-        } ${isDragging ? 'border-white bg-white' : 'border-gray-600 bg-black'}`}
+        } ${isDragging ? 'border-[var(--ink)] bg-[var(--accent)]' : 'border-[var(--line)] bg-[var(--surface)]'}`}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"
-          className={isDragging ? 'text-black' : 'text-gray-600'}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"
+          className={isDragging ? 'text-[var(--ink)]' : 'text-[var(--ink-3)]'}>
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           <polyline points="17 8 12 3 7 8" />
           <line x1="12" y1="3" x2="12" y2="15" />
         </svg>
-        <p className={`text-[11px] font-medium uppercase ${isDragging ? 'text-black' : 'text-gray-600'}`}>
+        <p className={`ed-label ${isDragging ? '!text-[var(--ink)]' : ''}`}>
           {isDragging ? 'Suelta aquí' : 'Arrastra archivos'}
         </p>
       </div>
@@ -293,13 +291,13 @@ function DailyPipView({
       {hasFiles && (
         <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-2.5">
           {allCategories.map(({ cat, files, onRemove }) => files.length > 0 && (
-            <div key={cat} className="flex flex-col gap-0.5">
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white shrink-0 mb-1">{CATEGORY_META[cat].label}</p>
+            <div key={cat} className="flex flex-col">
+              <p className="ed-label shrink-0 mb-1.5">{CATEGORY_META[cat].label}</p>
               {files.map(f => (
-                <div key={f.id} className={`${removingFileIds.has(f.id) ? 'daily-out' : 'daily-in'} flex items-center gap-1.5`}>
-                  <span className="flex-1 text-[11px] text-white font-mono truncate">• {f.name}</span>
-                  <button onClick={() => onRemove(f.id)} className="text-gray-600 hover:bg-gray-600 hover:text-black cursor-pointer shrink-0 p-0.5">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+                <div key={f.id} className={`${removingFileIds.has(f.id) ? 'daily-out' : 'daily-in'} flex items-center gap-2 py-1 border-b border-[var(--line)] last:border-b-0`}>
+                  <span className="flex-1 text-[11px] text-[var(--ink)] font-[family-name:var(--font-mono)] truncate">{f.name}</span>
+                  <button onClick={() => onRemove(f.id)} className="text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer shrink-0 p-0.5">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M18 6 6 18M6 6l12 12" />
                     </svg>
                   </button>
@@ -313,39 +311,39 @@ function DailyPipView({
       {/* Copy */}
       <button
         onClick={onCopy}
-        className={`pixel-btn shrink-0 w-full py-3 font-bold text-sm tracking-wide uppercase cursor-pointer ${copied ? 'bg-white text-black' : ''}`}
+        className={`ed-btn shrink-0 w-full py-3 ${copied ? '!bg-[var(--accent-mint)] !border-[var(--accent-mint)]' : 'ed-btn--solid'}`}
       >
-        {copied ? 'OK — Copiado' : 'Copy Daily'}
+        {copied ? 'Copiado' : 'Copy Daily'}
       </button>
 
       {/* Category modal */}
       {pendingBatch && (
         <div
-          className="daily-overlay fixed inset-0 bg-black/80 flex items-end justify-center z-50 p-3"
+          className="daily-overlay ed-overlay fixed inset-0 flex items-end justify-center z-50 p-3"
           onClick={onCancelBatch}
         >
           <div
-            className="daily-modal bg-black border border-white p-4 w-full flex flex-col gap-3"
+            className="daily-modal ed-dialog p-4 w-full flex flex-col gap-4"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex flex-col gap-0.5 border-b border-white pb-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-600">
+            <div className="flex flex-col gap-1.5 border-b border-[var(--line)] pb-3">
+              <p className="ed-label">
                 {pendingBatch.files.length} archivo{pendingBatch.files.length !== 1 ? 's' : ''}
               </p>
-              <h2 className="text-base font-bold text-white uppercase">¿Qué tipo?</h2>
+              <h2 className="text-lg font-medium tracking-[-0.02em]">¿Qué tipo?</h2>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col">
               {(Object.keys(CATEGORY_META) as Category[]).map(cat => (
                 <button
                   key={cat}
                   onClick={() => onConfirmCategory(cat)}
-                  className="w-full py-2.5 bg-black border border-white hover:bg-white hover:text-black cursor-pointer text-left px-3"
+                  className="w-full py-2.5 border-b border-[var(--line)] last:border-b-0 hover:bg-[var(--surface-muted)] transition-colors duration-150 cursor-pointer text-left px-1"
                 >
-                  <span className="text-xs font-bold uppercase">{CATEGORY_META[cat].label}</span>
+                  <span className="text-xs">{CATEGORY_META[cat].label}</span>
                 </button>
               ))}
             </div>
-            <button onClick={onCancelBatch} className="text-xs text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 cursor-pointer text-center py-1.5 uppercase">
+            <button onClick={onCancelBatch} className="ed-btn ed-btn--quiet self-start">
               Cancelar
             </button>
           </div>
@@ -374,8 +372,8 @@ function copyStylesToWindow(target: Window) {
     style.textContent = allCss.join('\n')
     target.document.head.appendChild(style)
   }
-  target.document.documentElement.style.cssText = 'background:#000'
-  target.document.body.style.cssText = 'background:#000;margin:0;height:100%'
+  target.document.documentElement.style.cssText = 'background:#FAFAF7'
+  target.document.body.style.cssText = 'background:#FAFAF7;margin:0;height:100%'
 }
 
 // Scoped per user: a shared key would hand one person's files to whoever logs in next
@@ -783,62 +781,71 @@ export default function DailyPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-black px-4 py-10 pb-20">
-      <div className="max-w-xl mx-auto flex flex-col gap-8">
+    <div className="min-h-screen px-6 sm:px-10 lg:px-16 py-10 pb-24">
+      <div className="max-w-5xl mx-auto flex flex-col">
 
-        {/* Header */}
-        <div className="flex flex-col gap-3">
-          <p className="text-xs uppercase leading-relaxed tracking-tighter text-gray-600">
-            BIENVENIDOS A TRABAJAJAJAR. UN LUGAR PARA HACER TUS TAREAS DEL DÍA A DÍA MÁS FÁCILES, RAPIDAS Y DIVERTIDAS
-          </p>
+        {/* Barra de sistema */}
+        <header className="flex items-center justify-between gap-6 pb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="ed-label shrink-0">Hub / Daily</span>
+            <span className="ed-label truncate hidden sm:inline">{user.email}</span>
+            {isAdmin && <span className="ed-chip ed-chip--accent shrink-0">Admin</span>}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="ed-label">
+              {saveState === 'saving' && 'Guardando'}
+              {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
+              {saveState === 'error' && 'Sin guardar'}
+            </span>
+            <button onClick={signOut} className="ed-btn ed-btn--quiet">Salir</button>
+          </div>
+        </header>
+        <div className="ed-rule" />
 
-          <div className="pixel-frame border border-white px-4 py-3 flex items-start justify-between gap-4">
-            <span className="corner-tl" />
-            <span className="corner-tr" />
-            <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-bold tracking-tight text-white">DAILY</h1>
-              <p className="text-sm text-white">Genera tu reporte de actividad diaria</p>
-            </div>
-            <div className="flex items-center gap-2 mt-1 shrink-0">
+        {/* Título editorial */}
+        <div className="grid lg:grid-cols-12 gap-6 pt-14 pb-12">
+          <div className="lg:col-span-7">
+            <h1 className="text-5xl sm:text-6xl font-medium tracking-[-0.03em] leading-[0.95]">
+              Daily
+            </h1>
+            <p className="text-sm text-[var(--ink-2)] mt-4 max-w-[38ch] leading-relaxed">
+              Genera tu reporte de actividad diaria. Se guarda solo mientras trabajas.
+            </p>
+          </div>
+
+          {/* Herramientas, alineadas a la retícula */}
+          <div className="lg:col-span-5 flex lg:justify-end items-start gap-2">
             <button
               onClick={() => setShowHistory(true)}
               title={isAdmin ? 'Historial (ves el de todo el equipo)' : 'Ver mis reportes guardados'}
-              className="p-1.5 border border-gray-600 bg-black text-gray-600 hover:bg-gray-600 hover:text-black cursor-pointer"
+              className="ed-icon-btn"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
-                <path d="M3 4h18v16H3z" />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="1" />
                 <path d="M7 9h10M7 13h10M7 17h6" />
               </svg>
             </button>
             <button
               onClick={() => setShowWeekly(true)}
               title="Reporte semanal (agrupado por cliente)"
-              className="p-1.5 border border-gray-600 bg-black text-gray-600 hover:bg-gray-600 hover:text-black cursor-pointer"
+              className="ed-icon-btn"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
-                <path d="M3 4h18v16H3z" />
-                <path d="M3 9h18M8 4v16" />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="1" />
+                <path d="M3 9h18M9 9v11" />
               </svg>
             </button>
             {hasFiles && (
-              <button
-                onClick={handleClear}
-                title="Limpiar"
-                className="group p-1.5 border border-gray-600 bg-black hover:bg-gray-600 cursor-pointer"
-              >
-                <Image
-                  src="/icons/clear-trash.png"
-                  alt="Limpiar"
-                  width={15}
-                  height={18}
-                  className="opacity-70 group-hover:opacity-100 group-hover:invert"
-                  style={{ imageRendering: 'pixelated' }}
-                />
+              <button onClick={handleClear} title="Limpiar (guarda antes de vaciar)" className="ed-icon-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
+                </svg>
               </button>
             )}
             <button
               onClick={openPip}
               disabled={pipStatus !== 'ok'}
+              data-active={pipActive}
               title={
                 pipStatus === 'insecure'
                   ? 'La ventana flotante requiere HTTPS. Este sitio se está abriendo por http:// — el navegador bloquea esta función sin candado de seguridad.'
@@ -846,69 +853,49 @@ export default function DailyPage() {
                     ? 'Ventana flotante no disponible en este navegador (usa Chrome o Edge en computadora)'
                     : pipActive ? 'Cerrar ventana flotante' : 'Abrir ventana flotante'
               }
-              className={`p-1.5 border cursor-pointer ${
-                pipStatus !== 'ok'
-                  ? 'dither border-gray-600 text-gray-600 cursor-not-allowed'
-                  : pipActive
-                    ? 'bg-white text-black border-white'
-                    : 'border-gray-600 bg-black text-gray-600 hover:bg-gray-600 hover:text-black'
-              }`}
+              className="ed-icon-btn"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
-                <rect x="2" y="3" width="20" height="14" />
-                <rect x="13" y="11" width="7" height="5" fill="currentColor" stroke="none" />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="1" />
+                <rect x="13" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none" />
               </svg>
             </button>
           </div>
-          </div>
-
-          {/* Sesión y estado de guardado */}
-          <div className="flex items-center justify-between gap-3 text-[10px] uppercase">
-            <span className="text-gray-600 truncate">
-              {user.email}{isAdmin && ' · admin'}
-            </span>
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-gray-600">
-                {saveState === 'saving' && 'Guardando...'}
-                {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
-                {saveState === 'error' && 'No se pudo guardar'}
-              </span>
-              <button
-                onClick={signOut}
-                className="text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1 cursor-pointer"
-              >
-                Salir
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* Drop zone */}
+        {/* Zona de carga */}
+        <div className="flex items-center justify-between py-3 ed-rule">
+          <span className="ed-label">Archivos</span>
+          <span className="ed-label tabular-nums">
+            {String(edits.length + muCreated.length + checkingComponents.length + artworkUploaded.length).padStart(2, '0')}
+          </span>
+        </div>
+
         <div
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onClick={() => fileInputRef.current?.click()}
-          className={`cursor-pointer border-2 border-dashed flex flex-col items-center justify-center gap-3 py-10 sm:py-14 px-8 select-none ${
+          className={`cursor-pointer rounded-[var(--radius)] border border-dashed flex flex-col items-center justify-center gap-3 py-14 px-8 select-none transition-colors duration-200 ${
             isDragging
-              ? 'border-white bg-white'
-              : 'border-gray-600 bg-black'
+              ? 'border-[var(--ink)] bg-[var(--accent)]'
+              : 'border-[var(--line)] bg-[var(--surface)] hover:border-[var(--ink-3)]'
           }`}
         >
           <svg
-            width="28" height="28" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"
-            className={isDragging ? 'text-black' : 'text-gray-600'}
+            width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"
+            className={isDragging ? 'text-[var(--ink)]' : 'text-[var(--ink-3)]'}
           >
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          <div className="text-center flex flex-col gap-1">
-            <p className={`text-sm font-medium uppercase ${isDragging ? 'text-black' : 'text-gray-600'}`}>
+          <div className="text-center flex flex-col gap-1.5">
+            <p className={`text-sm ${isDragging ? 'text-[var(--ink)]' : 'text-[var(--ink)]'}`}>
               {isDragging ? 'Suelta los archivos aquí' : 'Arrastra archivos o haz clic para seleccionar'}
             </p>
-            <p className={`text-xs uppercase ${isDragging ? 'text-black' : 'text-gray-600'}`}>Cualquier tipo · Múltiples a la vez</p>
+            <p className="ed-label">Cualquier tipo · Múltiples a la vez</p>
           </div>
           <input
             ref={fileInputRef}
@@ -919,24 +906,29 @@ export default function DailyPage() {
           />
         </div>
 
-        {/* File lists or empty state */}
+        {/* Fichas por categoría */}
         {hasFiles ? (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-px mt-10">
             {allCategories.map(({ cat, files, onRemove }) => files.length > 0 && (
-              <div key={cat} className="flex flex-col gap-3">
-                <div className="flex items-center gap-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white">{CATEGORY_META[cat].label}</p>
-                  <span className="text-[10px] text-gray-600 tabular-nums">{files.length}</span>
+              <div key={cat} className="ed-module mb-4">
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--line)]">
+                  <p className="ed-label !text-[var(--ink)]">{CATEGORY_META[cat].label}</p>
+                  <span className="ed-label tabular-nums">{String(files.length).padStart(2, '0')}</span>
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col">
                   {files.map(f => (
                     <div
                       key={f.id}
-                      className={`${removingFileIds.has(f.id) ? 'daily-out' : 'daily-in'} flex items-center gap-3 bg-black border border-white px-4 py-2.5`}
+                      className={`${removingFileIds.has(f.id) ? 'daily-out' : 'daily-in'} group flex items-center gap-3 px-4 py-2.5 border-b border-[var(--line)] last:border-b-0 hover:bg-[var(--surface-muted)] transition-colors duration-150`}
                     >
-                      <span className="flex-1 text-sm text-white truncate font-mono">{f.name}</span>
-                      <button onClick={() => onRemove(f.id)} className="text-gray-600 hover:bg-gray-600 hover:text-black cursor-pointer shrink-0 p-0.5">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+                      <span className="ed-label shrink-0 tabular-nums">{CATEGORY_META[cat].abbr}</span>
+                      <span className="flex-1 text-[13px] text-[var(--ink)] truncate font-[family-name:var(--font-mono)]">{f.name}</span>
+                      <button
+                        onClick={() => onRemove(f.id)}
+                        title="Quitar"
+                        className="text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer shrink-0 p-1"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M18 6 6 18M6 6l12 12" />
                         </svg>
                       </button>
@@ -947,31 +939,26 @@ export default function DailyPage() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2.5 py-6">
-            <div className="w-10 h-10 border border-gray-600 flex items-center justify-center shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="text-gray-600">
-                <rect x="2" y="7" width="20" height="13" />
-                <path d="M2 7l2-3h7l2 3" />
-              </svg>
-            </div>
-            <p className="text-xs text-gray-600 text-center uppercase">Los archivos subidos aparecerán aquí</p>
+          <div className="py-10">
+            <p className="ed-label">Los archivos subidos aparecerán aquí</p>
           </div>
         )}
 
-        {/* Divider */}
-        <div className="border-t border-white" />
+        {/* Secciones editables */}
+        <div className="flex items-center justify-between py-3 ed-rule mt-6">
+          <span className="ed-label">Notas</span>
+        </div>
 
-        {/* Editable sections */}
-        <div className="flex flex-col gap-7">
+        <div className="grid lg:grid-cols-2 gap-8 py-6">
           <BulletSection
-            label={`What I'll do ${isFriday ? 'Monday' : 'Tomorrow'}:`}
+            label={`What I'll do ${isFriday ? 'Monday' : 'Tomorrow'}`}
             bullets={tomorrowBullets}
             onUpdate={updateTomorrow}
             onRemove={removeTomorrow}
             onAdd={addTomorrow}
           />
           <BulletSection
-            label="Blockers/Issues:"
+            label="Blockers / Issues"
             bullets={blockerBullets}
             onUpdate={updateBlocker}
             onRemove={removeBlocker}
@@ -979,111 +966,91 @@ export default function DailyPage() {
           />
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-white" />
-
-        {/* Text output + Copy */}
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 bg-black border border-white px-3.5 py-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter" className="text-white shrink-0">
-                <rect x="3" y="4" width="18" height="18" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span className="text-sm font-semibold text-white tracking-wide">{mounted ? todayLabel() : ''}</span>
-            </div>
+        {/* Salida del reporte */}
+        <div className="flex items-center justify-between py-3 ed-rule mt-6">
+          <span className="ed-label">Reporte</span>
+          <div className="flex items-center gap-3">
+            <span className="ed-chip ed-chip--muted tabular-nums">{mounted ? todayLabel() : '—'}</span>
             {editedReport !== null && (
-              <button
-                onClick={() => setEditedReport(null)}
-                className="text-[10px] text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1 cursor-pointer uppercase"
-              >
+              <button onClick={() => setEditedReport(null)} className="ed-btn ed-btn--quiet">
                 Restaurar generado
               </button>
             )}
           </div>
+        </div>
+
+        <div className="flex flex-col gap-4 pt-2">
           <textarea
             value={displayText}
             onChange={e => setEditedReport(e.target.value)}
             spellCheck={false}
-            className="text-sm text-white font-mono bg-black border border-white px-5 py-5 whitespace-pre leading-relaxed resize-none outline-none focus:bg-white focus:text-black w-full"
-            style={{ minHeight: '12rem', height: `${(displayText.split('\n').length + 1) * 1.625}rem` }}
+            className="ed-textarea text-[13px] px-5 py-5 whitespace-pre w-full"
+            style={{ minHeight: '12rem', height: `${(displayText.split('\n').length + 1) * 1.7}rem` }}
           />
           <button
             onClick={handleCopy}
-            className={`pixel-btn w-full py-3.5 font-bold text-sm tracking-wide uppercase cursor-pointer ${copied ? 'bg-white text-black' : ''}`}
+            className={`ed-btn w-full py-3.5 ${copied ? '!bg-[var(--accent-mint)] !border-[var(--accent-mint)]' : 'ed-btn--solid'}`}
           >
-            {copied ? 'OK — Copiado' : 'Copiar Daily'}
+            {copied ? 'Copiado' : 'Copiar Daily'}
           </button>
         </div>
 
-        <p className="text-xs uppercase text-center text-gray-600">NUEVAS ACTUALIZACIONES PRONTO. ESTAMOS TRABAJAJAJANDO PARA TI :)</p>
+        <div className="ed-rule mt-16" />
+        <p className="ed-label py-4">
+          Nuevas actualizaciones pronto. Estamos trabajajajando para ti
+        </p>
 
       </div>
 
       {/* Category Modal (main page) */}
       {pendingBatch && pendingBatchSource === 'main' && (
         <div
-          className="daily-overlay fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center z-50 px-4 pb-6 sm:pb-0"
+          className="daily-overlay ed-overlay fixed inset-0 flex items-end sm:items-center justify-center z-50 px-4 pb-6 sm:pb-0"
           onClick={() => setPendingBatch(null)}
         >
           <div
-            className="daily-modal bg-black border border-white w-full max-w-sm flex flex-col"
+            className="daily-modal ed-dialog w-full max-w-md flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex flex-col gap-1 border-b border-white px-6 py-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-600">
+            <div className="flex flex-col gap-2 border-b border-[var(--line)] px-6 py-5">
+              <p className="ed-label">
                 {pendingBatch.files.length} archivo{pendingBatch.files.length !== 1 ? 's' : ''} seleccionado{pendingBatch.files.length !== 1 ? 's' : ''}
               </p>
-              <h2 className="text-lg font-bold text-white uppercase">¿Qué tipo de trabajo?</h2>
+              <h2 className="text-xl font-medium tracking-[-0.02em]">¿Qué tipo de trabajo?</h2>
             </div>
 
-            <div className="flex flex-col gap-5 p-6">
-              <div className="flex flex-col gap-1 bg-black px-4 py-3 border border-gray-600">
-                {pendingBatch.files.slice(0, 5).map((name, i) => (
-                  <p key={i} className="text-[11px] text-gray-600 font-mono truncate">• {name}</p>
-                ))}
-                {pendingBatch.files.length > 5 && (
-                  <p className="text-[11px] text-gray-600 mt-0.5">+ {pendingBatch.files.length - 5} más</p>
-                )}
-              </div>
+            <div className="px-6 py-4 border-b border-[var(--line)] flex flex-col gap-1">
+              {pendingBatch.files.slice(0, 5).map((name, i) => (
+                <p key={i} className="text-[11px] text-[var(--ink-2)] font-[family-name:var(--font-mono)] truncate">{name}</p>
+              ))}
+              {pendingBatch.files.length > 5 && (
+                <p className="ed-label mt-1">+ {pendingBatch.files.length - 5} más</p>
+              )}
+            </div>
 
-              <div className="flex flex-col gap-2">
+            <div className="flex flex-col">
+              {([
+                ['EDIT', 'Archivo que ya existía · se estuvo trabajando'],
+                ['MU_CREATED', 'Archivo nuevo · creado desde cero'],
+                ['CHECKING_COMPONENTS', 'Revisión de códigos de componente'],
+                ['ARTWORK_UPLOADED', 'Arte subido al sistema'],
+              ] as [Category, string][]).map(([cat, hint]) => (
                 <button
-                  onClick={() => confirmCategory('EDIT')}
-                  className="group w-full py-3.5 bg-black border border-white hover:bg-white cursor-pointer text-left px-4"
+                  key={cat}
+                  onClick={() => confirmCategory(cat)}
+                  className="group w-full py-3.5 border-b border-[var(--line)] hover:bg-[var(--surface-muted)] transition-colors duration-150 cursor-pointer text-left px-6 flex items-center gap-4"
                 >
-                  <span className="block text-sm font-bold text-white group-hover:text-black uppercase">Edits</span>
-                  <span className="block text-[11px] text-gray-600 group-hover:text-black mt-0.5">Archivo que ya existía · se estuvo trabajando</span>
+                  <span className="ed-label shrink-0">{CATEGORY_META[cat].abbr}</span>
+                  <span className="flex flex-col gap-0.5">
+                    <span className="block text-sm">{CATEGORY_META[cat].label}</span>
+                    <span className="block text-[11px] text-[var(--ink-2)]">{hint}</span>
+                  </span>
                 </button>
-                <button
-                  onClick={() => confirmCategory('MU_CREATED')}
-                  className="group w-full py-3.5 bg-black border border-white hover:bg-white cursor-pointer text-left px-4"
-                >
-                  <span className="block text-sm font-bold text-white group-hover:text-black uppercase">MockUp Created</span>
-                  <span className="block text-[11px] text-gray-600 group-hover:text-black mt-0.5">Archivo nuevo · creado desde cero</span>
-                </button>
-                <button
-                  onClick={() => confirmCategory('CHECKING_COMPONENTS')}
-                  className="group w-full py-3.5 bg-black border border-white hover:bg-white cursor-pointer text-left px-4"
-                >
-                  <span className="block text-sm font-bold text-white group-hover:text-black uppercase">Checking Component Codes</span>
-                  <span className="block text-[11px] text-gray-600 group-hover:text-black mt-0.5">Revisión de códigos de componente</span>
-                </button>
-                <button
-                  onClick={() => confirmCategory('ARTWORK_UPLOADED')}
-                  className="group w-full py-3.5 bg-black border border-white hover:bg-white cursor-pointer text-left px-4"
-                >
-                  <span className="block text-sm font-bold text-white group-hover:text-black uppercase">Artwork Output and Upload</span>
-                  <span className="block text-[11px] text-gray-600 group-hover:text-black mt-0.5">Arte subido al sistema</span>
-                </button>
-              </div>
+              ))}
+            </div>
 
-              <button
-                onClick={() => setPendingBatch(null)}
-                className="text-xs text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 cursor-pointer text-center py-1.5 uppercase"
-              >
+            <div className="px-6 py-4">
+              <button onClick={() => setPendingBatch(null)} className="ed-btn ed-btn--quiet">
                 Cancelar
               </button>
             </div>

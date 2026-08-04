@@ -1,61 +1,166 @@
 @import "tailwindcss";
 
+/* ===================================================================
+   Sistema de diseño — Editorial neo-brutalista
+   Retícula estricta, líneas de 1px, mucho blanco, acentos contados.
+   Sin sombras, sin degradados, sin glassmorphism.
+   =================================================================== */
+
+:root {
+  /* Superficies */
+  --bg:            #FAFAF7;  /* blanco cálido */
+  --surface:       #FFFFFF;
+  --surface-muted: #F2F2ED;
+
+  /* Tinta */
+  --ink:    #0E0E0C;  /* negro profundo */
+  --ink-2:  #5C5C55;  /* secundario */
+  --ink-3:  #92928A;  /* terciario / placeholders */
+
+  /* Líneas: la hairline es el elemento estructural del sistema */
+  --line:        #E3E3DB;
+  --line-strong: #0E0E0C;
+
+  /* Acentos — solo para destacar información, nunca decorativos */
+  --accent:      #DCF23C;  /* lima */
+  --accent-mint: #BEF2D6;
+  --accent-cyan: #B6E6EF;
+
+  --radius: 4px;
+  --radius-pill: 999px;
+
+  /* Escala de 8 px */
+  --space: 8px;
+}
+
 html, body {
-  background-color: #000;
-  color: #fff;
+  background-color: var(--bg);
+  color: var(--ink);
 }
 
 body {
-  font-family: var(--font-pixel), monospace;
-  -webkit-font-smoothing: none;
-  font-smooth: never;
-  text-rendering: optimizeSpeed;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern", "liga", "cv11";
 }
 
-/* 1-bit dither fill — stands in for a mid-tone gray using only black/white pixels,
-   for disabled/muted surfaces and decorative texture where the brief forbids gradients. */
-.dither {
-  background-image: repeating-linear-gradient(45deg, #fff 0, #fff 1px, #000 1px, #000 2px);
+::selection { background: var(--accent); color: var(--ink); }
+
+/* --- Módulo: la unidad base del sistema ------------------------------ */
+.ed-module {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.ed-module--ink { border-color: var(--line-strong); }
+
+/* --- Etiqueta micro: rotula cada módulo, como una ficha editorial ---- */
+.ed-label {
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
-/* Corner dots on a bordered panel, matching the reference card's crosshair-frame look. */
-.pixel-frame {
-  position: relative;
+/* --- Chip / cápsula --------------------------------------------------- */
+.ed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: transparent;
+  white-space: nowrap;
 }
-.pixel-frame::before,
-.pixel-frame::after,
-.pixel-frame .corner-tl,
-.pixel-frame .corner-tr {
-  content: '';
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: #fff;
-}
-.pixel-frame::before { top: -3px; left: -3px; }
-.pixel-frame::after { top: -3px; right: -3px; }
-.pixel-frame .corner-tl { bottom: -3px; left: -3px; }
-.pixel-frame .corner-tr { bottom: -3px; right: -3px; }
+.ed-chip--accent { background: var(--accent); border-color: var(--accent); }
+.ed-chip--mint   { background: var(--accent-mint); border-color: var(--accent-mint); }
+.ed-chip--cyan   { background: var(--accent-cyan); border-color: var(--accent-cyan); }
+.ed-chip--muted  { border-color: var(--line); color: var(--ink-2); }
 
-/* Classic beveled system button: light edge top/left, dark edge bottom/right,
-   pressed state inverts the bevel — no gradients, just hard offset borders. */
-.pixel-btn {
-  background: #000;
-  color: #fff;
-  border: 1px solid #fff;
-  box-shadow: 2px 2px 0 0 #fff;
-  transition: none;
+/* --- Botones: borde fino, hover discreto, 160 ms ---------------------- */
+.ed-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
-.pixel-btn:hover:not(:disabled) {
-  background: #fff;
-  color: #000;
+.ed-btn:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+.ed-btn:disabled { border-color: var(--line); color: var(--ink-3); cursor: not-allowed; }
+
+.ed-btn--solid { background: var(--ink); color: var(--bg); }
+.ed-btn--solid:hover:not(:disabled) { background: var(--accent); color: var(--ink); border-color: var(--accent); }
+.ed-btn--solid:disabled { background: var(--surface-muted); }
+
+/* Botón terciario: sin borde hasta el hover, para barras densas */
+.ed-btn--quiet {
+  border-color: transparent;
+  color: var(--ink-2);
+  padding: 6px 10px;
+  font-size: 11px;
 }
-.pixel-btn:active:not(:disabled) {
-  box-shadow: none;
-  transform: translate(2px, 2px);
+.ed-btn--quiet:hover:not(:disabled) { background: var(--surface-muted); color: var(--ink); border-color: var(--line); }
+
+/* Botón de icono, cuadrado sobre la retícula */
+.ed-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
-.pixel-btn:disabled {
-  opacity: 1;
-  color: #000;
-  cursor: not-allowed;
+.ed-icon-btn:hover:not(:disabled) { border-color: var(--line-strong); color: var(--ink); }
+.ed-icon-btn[data-active="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.ed-icon-btn:disabled { color: var(--ink-3); border-color: var(--line); cursor: not-allowed; background: var(--surface-muted); }
+
+/* --- Campos ----------------------------------------------------------- */
+.ed-input, .ed-textarea, .ed-select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  padding: 10px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 160ms ease;
+}
+.ed-input::placeholder, .ed-textarea::placeholder { color: var(--ink-3); }
+.ed-input:focus, .ed-textarea:focus, .ed-select:focus { border-color: var(--line-strong); }
+.ed-textarea { font-family: var(--font-mono), ui-monospace, monospace; line-height: 1.7; resize: none; }
+.ed-select { cursor: pointer; padding: 6px 10px; font-size: 12px; width: auto; }
+
+/* --- Reglas y tablas editoriales -------------------------------------- */
+.ed-rule { border-top: 1px solid var(--line); }
+.ed-row { border-bottom: 1px solid var(--line); }
+.ed-row:last-child { border-bottom: 0; }
+
+/* --- Superposición y diálogo ------------------------------------------ */
+.ed-overlay { background: color-mix(in srgb, var(--ink) 55%, transparent); }
+.ed-dialog {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
 }

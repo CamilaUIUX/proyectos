@@ -98,27 +98,22 @@ export default function WeeklyModal({ onClose }: { onClose: () => void }) {
   const dirty = savedContent === null ? text.trim().length > 0 : text !== savedContent
 
   return (
-    <div className="daily-overlay fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="daily-overlay ed-overlay fixed inset-0 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="daily-modal pixel-frame bg-black border border-white w-full max-w-2xl h-[85vh] flex flex-col gap-3 p-4"
+        className="daily-modal ed-dialog w-full max-w-2xl h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        <span className="corner-tl" />
-        <span className="corner-tr" />
-
-        <div className="flex items-center justify-between gap-4 shrink-0">
-          <h2 className="text-base font-bold text-white uppercase">Semanal</h2>
-          <button onClick={onClose} className="text-[11px] uppercase text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1 cursor-pointer">
-            Cerrar
-          </button>
+        <div className="flex items-center justify-between gap-4 shrink-0 px-6 py-4 border-b border-[var(--line)]">
+          <h2 className="text-xl font-medium tracking-[-0.02em]">Semanal</h2>
+          <button onClick={onClose} className="ed-btn ed-btn--quiet">Cerrar</button>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <span className="text-[10px] uppercase text-gray-600">Semana del:</span>
+        <div className="flex items-center gap-3 shrink-0 flex-wrap px-6 py-3 border-b border-[var(--line)]">
+          <span className="ed-label">Semana del</span>
           <select
             value={weekStart}
             onChange={e => setWeekStart(e.target.value)}
-            className="bg-black border border-white text-white text-[11px] px-2 py-1 outline-none cursor-pointer"
+            className="ed-select"
           >
             {weeks.map((w, i) => (
               <option key={w} value={w}>
@@ -129,34 +124,34 @@ export default function WeeklyModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleRegenerate}
             title="Vuelve a construirlo desde los dailys de esa semana, descartando lo editado a mano"
-            className="text-[10px] uppercase text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1 cursor-pointer"
+            className="ed-btn ed-btn--quiet ml-auto"
           >
             Regenerar
           </button>
         </div>
 
-        {error && <p className="text-xs text-white border border-white px-3 py-2">{error}</p>}
+        {error && <p className="text-xs px-6 py-3 text-[var(--ink)]">{error}</p>}
 
         {loading ? (
-          <p className="text-xs uppercase text-gray-600">Cargando...</p>
+          <p className="ed-label px-6 py-4">Cargando</p>
         ) : (
           <textarea
             value={text}
             onChange={e => { setText(e.target.value); setSaveState('idle') }}
             spellCheck={false}
-            className="flex-1 min-h-0 border border-gray-600 p-3 text-[11px] text-white bg-black font-mono whitespace-pre leading-relaxed resize-none outline-none focus:border-white"
+            className="flex-1 min-h-0 !border-0 !rounded-none ed-textarea text-[12px] p-6 whitespace-pre"
           />
         )}
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-4 shrink-0 px-6 py-4 border-t border-[var(--line)]">
           <button
             onClick={handleSave}
             disabled={loading || saveState === 'saving'}
-            className="pixel-btn px-3 py-1.5 text-[11px] font-bold uppercase cursor-pointer disabled:dither"
+            className="ed-btn ed-btn--solid"
           >
-            {saveState === 'saving' ? 'Guardando...' : 'Guardar'}
+            {saveState === 'saving' ? 'Guardando' : 'Guardar'}
           </button>
-          <span className="text-[10px] uppercase text-gray-600">
+          <span className="ed-label">
             {saveState === 'saved' && !dirty && 'Guardado'}
             {saveState === 'error' && 'No se pudo guardar'}
             {saveState !== 'saving' && dirty && 'Sin guardar'}

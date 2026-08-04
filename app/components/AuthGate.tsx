@@ -46,21 +46,27 @@ function friendlyError(message: string): string {
 
 function SetupNeeded() {
   return (
-    <div className="min-h-screen bg-black px-4 py-16">
-      <div className="max-w-xl mx-auto pixel-frame border border-white p-6 flex flex-col gap-4">
-        <span className="corner-tl" />
-        <span className="corner-tr" />
-        <h1 className="text-xl font-bold text-white uppercase">Falta configurar Supabase</h1>
-        <p className="text-sm text-white leading-relaxed">
+    <div className="min-h-screen px-6 sm:px-10 py-16">
+      <div className="max-w-xl mx-auto flex flex-col gap-6">
+        <span className="ed-label">Configuración pendiente</span>
+        <h1 className="text-3xl font-medium tracking-[-0.02em]">Falta configurar Supabase</h1>
+        <p className="text-sm text-[var(--ink-2)] leading-relaxed">
           No encuentro las claves de conexión. Para que esto funcione:
         </p>
-        <ol className="text-sm text-white flex flex-col gap-2 list-decimal pl-5 leading-relaxed">
-          <li>Entra a tu proyecto en Supabase → <b>Settings</b> → <b>API</b>.</li>
-          <li>Copia <b>Project URL</b> y <b>anon key</b>.</li>
-          <li>Pégalos en el archivo <b>.env.local</b> del proyecto.</li>
-          <li>Reinicia el servidor (<b>npm run dev</b>).</li>
+        <ol className="ed-module divide-y divide-[var(--line)]">
+          {[
+            <>Entra a tu proyecto en Supabase → <b>Settings</b> → <b>API</b>.</>,
+            <>Copia <b>Project URL</b> y <b>anon key</b>.</>,
+            <>Pégalos en el archivo <b>.env.local</b> del proyecto.</>,
+            <>Reinicia el servidor (<b>npm run dev</b>).</>,
+          ].map((step, i) => (
+            <li key={i} className="flex gap-4 px-4 py-3 text-sm leading-relaxed">
+              <span className="ed-label pt-1 shrink-0">{String(i + 1).padStart(2, '0')}</span>
+              <span>{step}</span>
+            </li>
+          ))}
         </ol>
-        <p className="text-xs text-gray-600 leading-relaxed">
+        <p className="text-xs text-[var(--ink-3)] leading-relaxed">
           En producción hay que agregar esas mismas dos variables en Vercel →
           Settings → Environment Variables.
         </p>
@@ -115,66 +121,68 @@ function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-black px-4 py-16 flex items-start justify-center">
-      <div className="w-full max-w-sm flex flex-col gap-6">
-        <div className="pixel-frame border border-white flex items-center justify-between px-4 py-2">
-          <span className="corner-tl" />
-          <span className="corner-tr" />
-          <p className="text-xs tracking-[0.3em] uppercase text-white">Hub // Acceso</p>
-          <p className="text-xs tracking-[0.3em] uppercase text-white">{'///'}</p>
-        </div>
+    <div className="min-h-screen px-6 sm:px-10 py-10 flex flex-col">
+      <header className="flex items-baseline justify-between gap-6 pb-4 max-w-6xl mx-auto w-full">
+        <span className="ed-label">Hub</span>
+        <span className="ed-label">Acceso</span>
+      </header>
+      <div className="ed-rule max-w-6xl mx-auto w-full" />
 
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight text-white uppercase">
-            {mode === 'signin' ? 'Entrar' : 'Crear cuenta'}
-          </h1>
-          <p className="text-xs text-gray-600 uppercase leading-relaxed">
-            Solo correos {ALLOWED_DOMAIN}
-          </p>
-        </div>
+      <div className="flex-1 flex items-center justify-center py-16">
+        <div className="w-full max-w-sm flex flex-col gap-10">
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] uppercase text-white tracking-wide">Correo</span>
-            <input
-              type="email" required value={email} onChange={e => setEmail(e.target.value)}
-              autoComplete="email" placeholder={`nombre${ALLOWED_DOMAIN}`}
-              className="bg-black border border-white px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:bg-white focus:text-black"
-            />
-          </label>
+          <div className="flex flex-col gap-3">
+            <h1 className="text-4xl font-medium tracking-[-0.03em] leading-[1.05]">
+              {mode === 'signin' ? 'Entrar' : 'Crear cuenta'}
+            </h1>
+            <span className="ed-chip ed-chip--muted self-start">Solo correos {ALLOWED_DOMAIN}</span>
+          </div>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] uppercase text-white tracking-wide">Contraseña</span>
-            <input
-              type="password" required value={password} onChange={e => setPassword(e.target.value)}
-              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-              minLength={6} placeholder="Mínimo 6 caracteres"
-              className="bg-black border border-white px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:bg-white focus:text-black"
-            />
-          </label>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <label className="flex flex-col gap-2">
+              <span className="ed-label">Correo</span>
+              <input
+                type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                autoComplete="email" placeholder={`nombre${ALLOWED_DOMAIN}`}
+                className="ed-input"
+              />
+            </label>
 
-          {error && (
-            <p role="alert" className="text-[11px] text-white border border-white px-3 py-2 leading-relaxed">
-              {error}
-            </p>
-          )}
-          {notice && (
-            <p role="status" className="text-[11px] text-white border border-white px-3 py-2 leading-relaxed">
-              {notice}
-            </p>
-          )}
+            <label className="flex flex-col gap-2">
+              <span className="ed-label">Contraseña</span>
+              <input
+                type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                minLength={6} placeholder="Mínimo 6 caracteres"
+                className="ed-input"
+              />
+            </label>
 
-          <button type="submit" disabled={busy} className="pixel-btn px-4 py-2.5 text-sm font-bold uppercase cursor-pointer disabled:dither">
-            {busy ? 'Espera...' : mode === 'signin' ? 'Entrar' : 'Crear cuenta'}
+            {error && (
+              <p role="alert" className="ed-module border-l-2 border-l-[var(--ink)] px-3 py-2.5 text-[12px] leading-relaxed">
+                {error}
+              </p>
+            )}
+            {notice && (
+              <p role="status" className="px-3 py-2.5 text-[12px] leading-relaxed rounded-[var(--radius)] bg-[var(--accent-mint)]">
+                {notice}
+              </p>
+            )}
+
+            <button type="submit" disabled={busy} className="ed-btn ed-btn--solid w-full py-3">
+              {busy ? 'Espera...' : mode === 'signin' ? 'Entrar' : 'Crear cuenta'}
+            </button>
+          </form>
+
+          <div className="ed-rule" />
+
+          <button
+            onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setNotice(null) }}
+            className="ed-btn ed-btn--quiet self-start"
+          >
+            {mode === 'signin' ? 'No tengo cuenta' : 'Ya tengo cuenta'}
           </button>
-        </form>
-
-        <button
-          onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setNotice(null) }}
-          className="self-start text-[11px] uppercase text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1 cursor-pointer"
-        >
-          {mode === 'signin' ? 'No tengo cuenta' : 'Ya tengo cuenta'}
-        </button>
+        </div>
       </div>
     </div>
   )
@@ -221,8 +229,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <p className="text-xs uppercase tracking-[0.3em] text-gray-600">Cargando...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="ed-label">Cargando</p>
       </div>
     )
   }

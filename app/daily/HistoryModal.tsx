@@ -72,67 +72,63 @@ export default function HistoryModal({ onClose }: { onClose: () => void }) {
   const dirty = selected != null && draft !== selected.content
 
   return (
-    <div className="daily-overlay fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="daily-overlay ed-overlay fixed inset-0 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="daily-modal pixel-frame bg-black border border-white w-full max-w-3xl h-[85vh] flex flex-col gap-3 p-4"
+        className="daily-modal ed-dialog w-full max-w-4xl h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        <span className="corner-tl" />
-        <span className="corner-tr" />
-
-        <div className="flex items-center justify-between gap-4 shrink-0">
-          <h2 className="text-base font-bold text-white uppercase">Historial</h2>
-          <button onClick={onClose} className="text-[11px] uppercase text-gray-600 hover:bg-gray-600 hover:text-black border border-gray-600 px-2 py-1 cursor-pointer">
-            Cerrar
-          </button>
+        <div className="flex items-center justify-between gap-4 shrink-0 px-6 py-4 border-b border-[var(--line)]">
+          <div className="flex items-baseline gap-4">
+            <h2 className="text-xl font-medium tracking-[-0.02em]">Historial</h2>
+            <span className="ed-label tabular-nums">{String(visible.length).padStart(2, '0')} registros</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {isAdmin && people.length > 0 && (
+              <select
+                value={personFilter}
+                onChange={e => { setPersonFilter(e.target.value); setSelectedId(null) }}
+                className="ed-select"
+              >
+                <option value="all">Todos</option>
+                <option value="mine">Solo los míos</option>
+                {people.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+            <button onClick={onClose} className="ed-btn ed-btn--quiet">Cerrar</button>
+          </div>
         </div>
 
-        {isAdmin && people.length > 0 && (
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] uppercase text-gray-600">Ver:</span>
-            <select
-              value={personFilter}
-              onChange={e => { setPersonFilter(e.target.value); setSelectedId(null) }}
-              className="bg-black border border-white text-white text-[11px] px-2 py-1 outline-none cursor-pointer"
-            >
-              <option value="all">Todos</option>
-              <option value="mine">Solo los míos</option>
-              {people.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-        )}
-
-        {loading && <p className="text-xs uppercase text-gray-600">Cargando...</p>}
-        {error && <p className="text-xs text-white border border-white px-3 py-2">{error}</p>}
+        {loading && <p className="ed-label px-6 py-4">Cargando</p>}
+        {error && <p className="text-xs px-6 py-4 text-[var(--ink)]">{error}</p>}
         {!loading && !error && visible.length === 0 && (
-          <p className="text-xs text-gray-600 uppercase leading-relaxed">
+          <p className="text-sm text-[var(--ink-2)] px-6 py-6 leading-relaxed">
             Todavía no hay reportes guardados. Se guardan solos a medida que trabajas.
           </p>
         )}
 
         {visible.length > 0 && (
-          <div className="flex-1 min-h-0 grid sm:grid-cols-[minmax(0,14rem)_1fr] gap-3">
-            <div className="overflow-y-auto border border-gray-600 flex flex-col">
+          <div className="flex-1 min-h-0 grid sm:grid-cols-[minmax(0,15rem)_1fr]">
+            <div className="overflow-y-auto border-r border-[var(--line)] flex flex-col">
               {visible.map(r => {
                 const isSel = selectedId === r.id
                 return (
                   <button
                     key={r.id}
                     onClick={() => openReport(r)}
-                    className={`text-left px-3 py-2 border-b border-gray-600 last:border-b-0 cursor-pointer ${
-                      isSel ? 'bg-white text-black' : 'text-white hover:bg-gray-600 hover:text-black'
+                    className={`text-left px-5 py-3 border-b border-[var(--line)] cursor-pointer transition-colors duration-150 ${
+                      isSel ? 'bg-[var(--accent)]' : 'hover:bg-[var(--surface-muted)]'
                     }`}
                   >
-                    <span className="block text-[11px] font-bold">{formatDateKey(r.report_date)}</span>
+                    <span className="block text-[13px] tabular-nums">{formatDateKey(r.report_date)}</span>
                     {isAdmin && r.user_id !== user.id && (
-                      <span className="block text-[9px] opacity-70 truncate">{r.profiles?.email ?? r.user_id}</span>
+                      <span className="block ed-label mt-1 truncate">{r.profiles?.email ?? r.user_id}</span>
                     )}
                   </button>
                 )
               })}
             </div>
 
-            <div className="min-h-0 flex flex-col gap-2">
+            <div className="min-h-0 flex flex-col">
               {selected ? (
                 <>
                   <textarea
@@ -140,35 +136,33 @@ export default function HistoryModal({ onClose }: { onClose: () => void }) {
                     onChange={e => { setDraft(e.target.value); setSaveState('idle') }}
                     readOnly={!canEdit}
                     spellCheck={false}
-                    className={`flex-1 min-h-0 border border-gray-600 p-3 text-[11px] text-white bg-black font-mono whitespace-pre leading-relaxed resize-none outline-none focus:border-white ${
-                      canEdit ? '' : 'opacity-70 cursor-not-allowed'
+                    className={`flex-1 min-h-0 !border-0 !rounded-none ed-textarea text-[12px] p-6 whitespace-pre ${
+                      canEdit ? '' : 'text-[var(--ink-2)] cursor-not-allowed'
                     }`}
                   />
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-4 shrink-0 px-6 py-4 border-t border-[var(--line)]">
                     {canEdit ? (
                       <>
                         <button
                           onClick={handleSave}
                           disabled={!dirty || saveState === 'saving'}
-                          className="pixel-btn px-3 py-1.5 text-[11px] font-bold uppercase cursor-pointer disabled:dither"
+                          className="ed-btn ed-btn--solid"
                         >
-                          {saveState === 'saving' ? 'Guardando...' : 'Guardar cambios'}
+                          {saveState === 'saving' ? 'Guardando' : 'Guardar cambios'}
                         </button>
-                        <span className="text-[10px] uppercase text-gray-600">
+                        <span className="ed-label">
                           {saveState === 'saved' && !dirty && 'Guardado'}
                           {saveState === 'error' && 'No se pudo guardar'}
                           {dirty && saveState !== 'saving' && 'Sin guardar'}
                         </span>
                       </>
                     ) : (
-                      <span className="text-[10px] uppercase text-gray-600">
-                        Reporte de otra persona · solo lectura
-                      </span>
+                      <span className="ed-chip ed-chip--muted">Reporte de otra persona · solo lectura</span>
                     )}
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-gray-600 uppercase">Elige una fecha</p>
+                <p className="ed-label p-6">Elige una fecha</p>
               )}
             </div>
           </div>
