@@ -91,8 +91,9 @@ function generateReport(
   return lines.join('\n')
 }
 
-function BulletSection({ label, bullets, onUpdate, onRemove, onAdd }: {
+function BulletSection({ label, tone, bullets, onUpdate, onRemove, onAdd }: {
   label: string
+  tone: 'yellow' | 'blue'
   bullets: Bullet[]
   onUpdate: (id: string, text: string) => void
   onRemove: (id: string) => void
@@ -101,18 +102,18 @@ function BulletSection({ label, bullets, onUpdate, onRemove, onAdd }: {
   return (
     <div className="flex flex-col gap-3">
       <p className="ed-label">{label}</p>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2.5">
         {bullets.map(b => (
-          <div key={b.id} className="daily-in flex items-center gap-3">
+          <div key={b.id} className="daily-in flex items-center gap-2.5">
             <input
               type="text" value={b.text} onChange={e => onUpdate(b.id, e.target.value)}
-              className="ed-input flex-1"
+              className={`tj-pill flex-1 ${tone === 'yellow' ? 'tj-pill--yellow' : 'tj-pill--blue'}`}
               placeholder="Escribe aquí..."
             />
             <button
               onClick={() => onRemove(b.id)}
               title="Quitar"
-              className="ed-icon-btn shrink-0 !w-8 !h-8 border-transparent hover:border-[var(--line)]"
+              className={`tj-dot ${tone === 'yellow' ? 'tj-dot--yellow' : 'tj-dot--blue'}`}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -210,7 +211,7 @@ function DailyPipView({
           if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false)
         }}
         className={`h-screen flex items-center px-3 gap-3 select-none overflow-hidden border-b transition-colors duration-200 ${
-          isDragging ? 'bg-[var(--accent)] border-[var(--ink)]' : 'bg-[var(--bg)] border-[var(--line)]'
+          isDragging ? 'bg-[var(--accent)] border-[var(--ink)]' : 'bg-[var(--surface)] border-[var(--line)]'
         }`}
       >
         {isDragging ? (
@@ -248,7 +249,7 @@ function DailyPipView({
   }
 
   return (
-    <div className="h-screen bg-[var(--bg)] flex flex-col p-4 gap-3 overflow-hidden">
+    <div className="h-screen bg-[var(--surface)] flex flex-col p-4 gap-3 overflow-hidden">
 
       {/* Header */}
       <div className="flex items-center justify-between shrink-0 border-b border-[var(--line)] pb-2.5">
@@ -372,8 +373,8 @@ function copyStylesToWindow(target: Window) {
     style.textContent = allCss.join('\n')
     target.document.head.appendChild(style)
   }
-  target.document.documentElement.style.cssText = 'background:#FAFAF7'
-  target.document.body.style.cssText = 'background:#FAFAF7;margin:0;height:100%'
+  target.document.documentElement.style.cssText = 'background:#F1ECDC'
+  target.document.body.style.cssText = 'background:#F1ECDC;margin:0;height:100%'
 }
 
 // Scoped per user: a shared key would hand one person's files to whoever logs in next
@@ -404,6 +405,7 @@ export default function DailyPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [showWeekly, setShowWeekly] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   // Starts already "loaded" when Supabase isn't configured, so the autosave below stays off
   // instead of waiting forever for a fetch that will never run.
   const [cloudLoaded, setCloudLoaded] = useState(!supabase)
@@ -684,6 +686,7 @@ export default function DailyPage() {
     setCheckingComponents([])
     setArtworkUploaded([])
     setRemovingFileIds(new Set())
+    setShowClearConfirm(false)
   }
 
   const handleCopy = useCallback(async () => {
@@ -794,257 +797,237 @@ export default function DailyPage() {
   ]
 
   return (
-    <div className="min-h-screen px-6 sm:px-10 lg:px-16 py-10 pb-24">
-      <div className="max-w-5xl mx-auto flex flex-col">
+    <div className="min-h-screen bg-[var(--bg)] px-6 sm:px-10 lg:px-16 py-10 pb-24">
+      <div className="max-w-5xl mx-auto flex flex-col gap-6">
 
-        {/* Barra de sistema */}
-        <header className="flex items-center justify-between gap-6 pb-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="ed-label shrink-0">Hub / Daily</span>
-            {user && <span className="ed-label truncate hidden sm:inline">{user.email}</span>}
-            {isAdmin && <span className="ed-chip ed-chip--accent shrink-0">Admin</span>}
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            {user ? (
-              <>
-                <span className="ed-label">
+        {/* Tarjeta 1: cabecera + título + zona de carga */}
+        <section className="tj-card tj-card--notch px-6 sm:px-10 pt-7 pb-9">
+
+          {/* Barra de sistema: el logo va acá cuando esté el arte final */}
+          <header className="flex flex-wrap items-center justify-between gap-4 pb-6">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="ed-label shrink-0">Hub / Daily</span>
+              {user && <span className="ed-label truncate hidden sm:inline">{user.email}</span>}
+              {isAdmin && <span className="ed-chip ed-chip--accent shrink-0">Admin</span>}
+            </div>
+
+            {/* Todas las acciones juntas, como antes: nada queda escondido */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {user && (
+                <span className="ed-label hidden sm:inline mr-1">
                   {saveState === 'saving' && 'Guardando'}
                   {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
                   {saveState === 'error' && 'Sin guardar'}
                 </span>
-                <button onClick={signOut} className="ed-btn ed-btn--quiet">Salir</button>
-              </>
-            ) : canSignIn && (
-              <button onClick={() => openLogin('signin')} className="ed-btn ed-btn--quiet">Entrar</button>
-            )}
-          </div>
-        </header>
-        <div className="ed-rule" />
-
-        {/* Título editorial */}
-        <div className="grid lg:grid-cols-12 gap-6 pt-14 pb-12">
-          <div className="lg:col-span-7">
-            <h1 className="text-5xl sm:text-6xl font-medium tracking-[-0.03em] leading-[0.95]">
-              Daily
-            </h1>
-            <p className="text-sm text-[var(--ink-2)] mt-4 max-w-[38ch] leading-relaxed">
-              Genera tu reporte de actividad diaria.
-              {user
-                ? ' Se guarda solo mientras trabajas.'
-                : ' Se guarda en este navegador mientras trabajas.'}
-            </p>
-          </div>
-
-          {/* Herramientas, alineadas a la retícula. Historial y semanal necesitan cuenta. */}
-          <div className="lg:col-span-5 flex lg:justify-end items-start gap-2">
-            {user && (
-              <>
-                <button
-                  onClick={() => setShowHistory(true)}
-                  title={isAdmin ? 'Historial (ves el de todo el equipo)' : 'Ver mis reportes guardados'}
-                  className="ed-icon-btn"
-                >
+              )}
+              {user && (
+                <>
+                  <button onClick={() => setShowHistory(true)} className="tj-nav-btn">Historial</button>
+                  <button onClick={() => setShowWeekly(true)} className="tj-nav-btn">Semanal</button>
+                </>
+              )}
+              {hasFiles && (
+                <button onClick={() => setShowClearConfirm(true)} title="Limpiar (guarda antes de vaciar)" className="ed-icon-btn">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="16" rx="1" />
-                    <path d="M7 9h10M7 13h10M7 17h6" />
+                    <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
                   </svg>
                 </button>
-                <button
-                  onClick={() => setShowWeekly(true)}
-                  title="Reporte semanal (agrupado por cliente)"
-                  className="ed-icon-btn"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="16" rx="1" />
-                    <path d="M3 9h18M9 9v11" />
-                  </svg>
-                </button>
-              </>
-            )}
-            {hasFiles && (
-              <button onClick={handleClear} title="Limpiar (guarda antes de vaciar)" className="ed-icon-btn">
+              )}
+              <button
+                onClick={openPip}
+                disabled={pipStatus !== 'ok'}
+                data-active={pipActive}
+                title={
+                  pipStatus === 'insecure'
+                    ? 'La ventana flotante requiere HTTPS. Este sitio se está abriendo por http:// — el navegador bloquea esta función sin candado de seguridad.'
+                    : pipStatus === 'unsupported'
+                      ? 'Ventana flotante no disponible en este navegador (usa Chrome o Edge en computadora)'
+                      : pipActive ? 'Cerrar ventana flotante' : 'Abrir ventana flotante'
+                }
+                className="ed-icon-btn"
+              >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
+                  <rect x="2" y="3" width="20" height="14" rx="1" />
+                  <rect x="13" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none" />
                 </svg>
               </button>
-            )}
-            <button
-              onClick={openPip}
-              disabled={pipStatus !== 'ok'}
-              data-active={pipActive}
-              title={
-                pipStatus === 'insecure'
-                  ? 'La ventana flotante requiere HTTPS. Este sitio se está abriendo por http:// — el navegador bloquea esta función sin candado de seguridad.'
-                  : pipStatus === 'unsupported'
-                    ? 'Ventana flotante no disponible en este navegador (usa Chrome o Edge en computadora)'
-                    : pipActive ? 'Cerrar ventana flotante' : 'Abrir ventana flotante'
-              }
-              className="ed-icon-btn"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="1" />
-                <rect x="13" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Invitación a registrarse: el historial y el semanal necesitan cuenta */}
-        {!user && canSignIn && (
-          <div className="ed-module p-5 mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-            <div className="flex flex-col gap-1.5">
-              <span className="ed-label">Historial</span>
-              <p className="text-sm leading-relaxed max-w-[52ch]">
-                Si quieres guardar el historial de tu actividad, regístrate aquí.
-                Tus reportes quedan guardados y los puedes consultar desde cualquier
-                computadora.
-              </p>
+              {user ? (
+                <button onClick={signOut} className="ed-btn ed-btn--quiet">Salir</button>
+              ) : canSignIn && (
+                <button onClick={() => openLogin('signin')} className="ed-btn ed-btn--quiet">Entrar</button>
+              )}
             </div>
-            <button
-              onClick={() => openLogin('signup')}
-              className="ed-btn ed-btn--solid shrink-0 self-start sm:self-auto"
+          </header>
+
+          {/* Título */}
+          <h1 className="font-sans text-6xl sm:text-7xl font-extrabold tracking-[-0.02em] leading-[0.95] text-[var(--ink)]">
+            Daily
+          </h1>
+          <p className="text-sm text-[var(--ink-2)] mt-4 max-w-[46ch] leading-relaxed">
+            Genera tu reporte de actividad diaria.
+            {user
+              ? ' Se guarda solo mientras trabajas.'
+              : ' Se guarda en este navegador mientras trabajas.'}
+          </p>
+
+          {/* Invitación a registrarse: el historial y el semanal necesitan cuenta */}
+          {!user && canSignIn && (
+            <div className="ed-module p-5 mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div className="flex flex-col gap-1.5">
+                <span className="ed-label">Historial</span>
+                <p className="text-sm leading-relaxed max-w-[52ch]">
+                  Si quieres guardar el historial de tu actividad, regístrate aquí.
+                  Tus reportes quedan guardados y los puedes consultar desde cualquier
+                  computadora.
+                </p>
+              </div>
+              <button
+                onClick={() => openLogin('signup')}
+                className="ed-btn ed-btn--solid shrink-0 self-start sm:self-auto"
+              >
+                Registrarme
+              </button>
+            </div>
+          )}
+
+          {/* Zona de carga */}
+          <div className="flex items-center justify-between pt-9 pb-3">
+            <span className="ed-label">Archivos</span>
+            <span className="ed-label tabular-nums">
+              {String(edits.length + muCreated.length + checkingComponents.length + artworkUploaded.length).padStart(2, '0')}
+            </span>
+          </div>
+
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+            className={`cursor-pointer rounded-2xl border border-dashed flex flex-col items-center justify-center gap-3 py-14 px-8 select-none transition-colors duration-200 ${
+              isDragging
+                ? 'border-[var(--ink)] bg-[var(--accent)]'
+                : 'border-[var(--ink-3)] bg-[var(--surface-muted)] hover:border-[var(--ink-2)]'
+            }`}
+          >
+            <svg
+              width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"
+              className={isDragging ? 'text-[var(--ink)]' : 'text-[var(--ink-2)]'}
             >
-              Registrarme
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <div className="text-center flex flex-col gap-1.5">
+              <p className="text-sm text-[var(--ink)]">
+                {isDragging ? 'Suelta los archivos aquí' : 'Arrastra archivos o haz clic para seleccionar'}
+              </p>
+              <p className="ed-label">Cualquier tipo · Múltiples a la vez</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="sr-only"
+              onChange={handleInputChange}
+            />
+          </div>
+        </section>
+
+        {/* Tarjeta 2: archivos por categoría */}
+        <section className="tj-card px-6 sm:px-10 py-8">
+          {hasFiles ? (
+            <div className="flex flex-col gap-8">
+              {allCategories.map(({ cat, files, onRemove }) => files.length > 0 && (
+                <div key={cat}>
+                  <h2 className="font-sans text-2xl font-extrabold tracking-[-0.01em] text-[var(--ink)] mb-1">
+                    {CATEGORY_META[cat].label}
+                  </h2>
+                  <div className="flex flex-col">
+                    {files.map(f => (
+                      <div
+                        key={f.id}
+                        className={`${removingFileIds.has(f.id) ? 'daily-out' : 'daily-in'} group flex items-center gap-3 py-2.5 border-b border-[var(--line)] last:border-b-0`}
+                      >
+                        <span className="tj-badge">{CATEGORY_META[cat].abbr}</span>
+                        <span className="flex-1 text-[13px] text-[var(--ink)] truncate">{f.name}</span>
+                        <button
+                          onClick={() => onRemove(f.id)}
+                          title="Quitar"
+                          className="text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer shrink-0 p-1"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 6 6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="ed-label">Los archivos subidos aparecerán aquí</p>
+          )}
+        </section>
+
+        {/* Tarjeta 3: notas y reporte final */}
+        <section className="tj-card px-6 sm:px-10 py-8">
+          <div className="grid lg:grid-cols-2 gap-8">
+            <BulletSection
+              label={`What I'll do ${isFriday ? 'Monday' : 'Tomorrow'}`}
+              tone="yellow"
+              bullets={tomorrowBullets}
+              onUpdate={updateTomorrow}
+              onRemove={removeTomorrow}
+              onAdd={addTomorrow}
+            />
+            <BulletSection
+              label="Blockers / Issues"
+              tone="blue"
+              bullets={blockerBullets}
+              onUpdate={updateBlocker}
+              onRemove={removeBlocker}
+              onAdd={addBlocker}
+            />
+          </div>
+
+          {/* Salida del reporte */}
+          <div className="flex items-center justify-between py-3 ed-rule mt-8">
+            <span className="ed-label">Reporte</span>
+            <div className="flex items-center gap-3">
+              <span className="ed-chip ed-chip--muted tabular-nums">{mounted ? todayLabel() : '—'}</span>
+              {editedReport !== null && (
+                <button onClick={() => setEditedReport(null)} className="ed-btn ed-btn--quiet">
+                  Restaurar generado
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 pt-4">
+            <textarea
+              value={displayText}
+              onChange={e => setEditedReport(e.target.value)}
+              spellCheck={false}
+              className="ed-textarea text-[13px] px-5 py-5 whitespace-pre w-full !rounded-2xl"
+              style={{ minHeight: '12rem', height: `${(displayText.split('\n').length + 1) * 1.7}rem` }}
+            />
+            <button
+              onClick={handleCopy}
+              className={`w-full py-3.5 rounded-[var(--radius-pill)] font-medium text-[13px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ${
+                copied ? 'bg-[var(--accent-mint)] text-[var(--ink)]' : 'bg-[var(--accent)] text-[var(--ink)] hover:brightness-95'
+              }`}
+            >
+              {copied ? 'Copiado' : 'Copiar Daily'}
             </button>
           </div>
-        )}
 
-        {/* Zona de carga */}
-        <div className="flex items-center justify-between py-3 ed-rule">
-          <span className="ed-label">Archivos</span>
-          <span className="ed-label tabular-nums">
-            {String(edits.length + muCreated.length + checkingComponents.length + artworkUploaded.length).padStart(2, '0')}
-          </span>
-        </div>
-
-        <div
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={() => fileInputRef.current?.click()}
-          className={`cursor-pointer rounded-[var(--radius)] border border-dashed flex flex-col items-center justify-center gap-3 py-14 px-8 select-none transition-colors duration-200 ${
-            isDragging
-              ? 'border-[var(--ink)] bg-[var(--accent)]'
-              : 'border-[var(--line)] bg-[var(--surface)] hover:border-[var(--ink-3)]'
-          }`}
-        >
-          <svg
-            width="24" height="24" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"
-            className={isDragging ? 'text-[var(--ink)]' : 'text-[var(--ink-3)]'}
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          <div className="text-center flex flex-col gap-1.5">
-            <p className={`text-sm ${isDragging ? 'text-[var(--ink)]' : 'text-[var(--ink)]'}`}>
-              {isDragging ? 'Suelta los archivos aquí' : 'Arrastra archivos o haz clic para seleccionar'}
-            </p>
-            <p className="ed-label">Cualquier tipo · Múltiples a la vez</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="sr-only"
-            onChange={handleInputChange}
-          />
-        </div>
-
-        {/* Fichas por categoría */}
-        {hasFiles ? (
-          <div className="flex flex-col gap-px mt-10">
-            {allCategories.map(({ cat, files, onRemove }) => files.length > 0 && (
-              <div key={cat} className="ed-module mb-4">
-                <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--line)]">
-                  <p className="ed-label !text-[var(--ink)]">{CATEGORY_META[cat].label}</p>
-                  <span className="ed-label tabular-nums">{String(files.length).padStart(2, '0')}</span>
-                </div>
-                <div className="flex flex-col">
-                  {files.map(f => (
-                    <div
-                      key={f.id}
-                      className={`${removingFileIds.has(f.id) ? 'daily-out' : 'daily-in'} group flex items-center gap-3 px-4 py-2.5 border-b border-[var(--line)] last:border-b-0 hover:bg-[var(--surface-muted)] transition-colors duration-150`}
-                    >
-                      <span className="ed-label shrink-0 tabular-nums">{CATEGORY_META[cat].abbr}</span>
-                      <span className="flex-1 text-[13px] text-[var(--ink)] truncate font-[family-name:var(--font-mono)]">{f.name}</span>
-                      <button
-                        onClick={() => onRemove(f.id)}
-                        title="Quitar"
-                        className="text-[var(--ink-3)] hover:text-[var(--ink)] transition-colors duration-150 cursor-pointer shrink-0 p-1"
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M18 6 6 18M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="py-10">
-            <p className="ed-label">Los archivos subidos aparecerán aquí</p>
-          </div>
-        )}
-
-        {/* Secciones editables */}
-        <div className="flex items-center justify-between py-3 ed-rule mt-6">
-          <span className="ed-label">Notas</span>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-8 py-6">
-          <BulletSection
-            label={`What I'll do ${isFriday ? 'Monday' : 'Tomorrow'}`}
-            bullets={tomorrowBullets}
-            onUpdate={updateTomorrow}
-            onRemove={removeTomorrow}
-            onAdd={addTomorrow}
-          />
-          <BulletSection
-            label="Blockers / Issues"
-            bullets={blockerBullets}
-            onUpdate={updateBlocker}
-            onRemove={removeBlocker}
-            onAdd={addBlocker}
-          />
-        </div>
-
-        {/* Salida del reporte */}
-        <div className="flex items-center justify-between py-3 ed-rule mt-6">
-          <span className="ed-label">Reporte</span>
-          <div className="flex items-center gap-3">
-            <span className="ed-chip ed-chip--muted tabular-nums">{mounted ? todayLabel() : '—'}</span>
-            {editedReport !== null && (
-              <button onClick={() => setEditedReport(null)} className="ed-btn ed-btn--quiet">
-                Restaurar generado
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4 pt-2">
-          <textarea
-            value={displayText}
-            onChange={e => setEditedReport(e.target.value)}
-            spellCheck={false}
-            className="ed-textarea text-[13px] px-5 py-5 whitespace-pre w-full"
-            style={{ minHeight: '12rem', height: `${(displayText.split('\n').length + 1) * 1.7}rem` }}
-          />
-          <button
-            onClick={handleCopy}
-            className={`ed-btn w-full py-3.5 ${copied ? '!bg-[var(--accent-mint)] !border-[var(--accent-mint)]' : 'ed-btn--solid'}`}
-          >
-            {copied ? 'Copiado' : 'Copiar Daily'}
-          </button>
-        </div>
-
-        <div className="ed-rule mt-16" />
-        <p className="ed-label py-4">
-          Nuevas actualizaciones pronto. Estamos trabajajajando para ti
-        </p>
+          <div className="ed-rule mt-10" />
+          <p className="ed-label py-4">
+            Nuevas actualizaciones pronto. Estamos trabajajajando para ti
+          </p>
+        </section>
 
       </div>
 
@@ -1098,6 +1081,40 @@ export default function DailyPage() {
             <div className="px-6 py-4">
               <button onClick={() => setPendingBatch(null)} className="ed-btn ed-btn--quiet">
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmación antes de limpiar */}
+      {showClearConfirm && (
+        <div
+          className="daily-overlay ed-overlay fixed inset-0 flex items-end sm:items-center justify-center z-50 px-4 pb-6 sm:pb-0"
+          onClick={() => setShowClearConfirm(false)}
+        >
+          <div
+            className="daily-modal ed-dialog w-full max-w-md flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-2 border-b border-[var(--line)] px-6 py-5">
+              <span className="ed-label">Limpiar</span>
+              <h2 className="text-xl font-medium tracking-[-0.02em]">¿Vaciar la pantalla?</h2>
+            </div>
+
+            <div className="px-6 py-5 border-b border-[var(--line)]">
+              <p className="text-sm text-[var(--ink-2)] leading-relaxed">
+                Se guarda el reporte de hoy antes de vaciar, así que queda en el historial.
+                Pero la pantalla se limpia y no se puede deshacer desde aquí.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2.5 px-6 py-4">
+              <button onClick={() => setShowClearConfirm(false)} className="ed-btn ed-btn--quiet">
+                Cancelar
+              </button>
+              <button onClick={handleClear} className="ed-btn ed-btn--solid">
+                Limpiar
               </button>
             </div>
           </div>

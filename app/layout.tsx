@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import { Inter, IBM_Plex_Mono } from 'next/font/google'
+import { Gabarito, IBM_Plex_Mono } from 'next/font/google'
 import './globals.css'
 
-// Grotesca suiza para todo el texto; mono técnica para el reporte y los datos,
-// que se leen como salida de un sistema y no como prosa.
-const inter = Inter({
+// Redondeada y amigable para todo el texto; mono técnica para el reporte y los
+// nombres de archivo, que se leen como salida de un sistema y no como prosa.
+const gabarito = Gabarito({
   subsets: ['latin'],
   variable: '--font-sans',
 })
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${inter.variable} ${plexMono.variable}`}>
+    <html lang="es" className={`${gabarito.variable} ${plexMono.variable}`}>
       <body>
         {children}
       </body>

@@ -1,33 +1,40 @@
 @import "tailwindcss";
 
 /* ===================================================================
-   Sistema de diseño — Editorial neo-brutalista
-   Retícula estricta, líneas de 1px, mucho blanco, acentos contados.
-   Sin sombras, sin degradados, sin glassmorphism.
+   Sistema de diseño — Tarjetas sobre escritorio oscuro
+   Módulos color crema con una muesca cortada en la esquina, flotando
+   sobre un fondo oscuro. Dos acentos de color (amarillo / celeste)
+   marcan las dos columnas de notas. Sin sombras, sin degradados.
    =================================================================== */
 
 :root {
-  /* Superficies */
-  --bg:            #FAFAF7;  /* blanco cálido */
-  --surface:       #FFFFFF;
-  --surface-muted: #F2F2ED;
+  /* Superficie de página: el "escritorio" oscuro detrás de las tarjetas */
+  --bg: #1C1B18;
 
-  /* Tinta */
-  --ink:    #0E0E0C;  /* negro profundo */
-  --ink-2:  #5C5C55;  /* secundario */
-  --ink-3:  #92928A;  /* terciario / placeholders */
+  /* Superficie de tarjeta: el papel crema donde vive todo el contenido */
+  --surface:       #F1ECDC;
+  --surface-muted: #E7E0C8;
 
-  /* Líneas: la hairline es el elemento estructural del sistema */
-  --line:        #E3E3DB;
-  --line-strong: #0E0E0C;
+  /* Tinta, para texto sobre --surface (crema) */
+  --ink:    #211F1A;  /* negro cálido */
+  --ink-2:  #8B8577;  /* secundario */
+  --ink-3:  #B7B09C;  /* terciario / placeholders */
 
-  /* Acentos — solo para destacar información, nunca decorativos */
-  --accent:      #DCF23C;  /* lima */
-  --accent-mint: #BEF2D6;
-  --accent-cyan: #B6E6EF;
+  /* Texto sobre un relleno oscuro (botones sólidos, hover invertido) */
+  --on-ink: #F1ECDC;
 
-  --radius: 4px;
+  /* Líneas: la hairline separa filas dentro de una tarjeta */
+  --line:        #DED7BE;
+  --line-strong: #211F1A;
+
+  /* Acentos — amarillo para "mañana", celeste para "bloqueos" */
+  --accent:      #F0CB4E;
+  --accent-mint: #BEE8C7;
+  --accent-cyan: #CFDBF0;
+
+  --radius:      22px;  /* esquinas de tarjeta */
   --radius-pill: 999px;
+  --notch:       48px;  /* tamaño del corte en la esquina superior derecha */
 
   /* Escala de 8 px */
   --space: 8px;
@@ -101,10 +108,10 @@ body {
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
-.ed-btn:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+.ed-btn:hover:not(:disabled) { background: var(--ink); color: var(--on-ink); }
 .ed-btn:disabled { border-color: var(--line); color: var(--ink-3); cursor: not-allowed; }
 
-.ed-btn--solid { background: var(--ink); color: var(--bg); }
+.ed-btn--solid { background: var(--ink); color: var(--on-ink); }
 .ed-btn--solid:hover:not(:disabled) { background: var(--accent); color: var(--ink); border-color: var(--accent); }
 .ed-btn--solid:disabled { background: var(--surface-muted); }
 
@@ -124,15 +131,15 @@ body {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--ink);
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
 .ed-icon-btn:hover:not(:disabled) { border-color: var(--line-strong); color: var(--ink); }
-.ed-icon-btn[data-active="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.ed-icon-btn[data-active="true"] { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
 .ed-icon-btn:disabled { color: var(--ink-3); border-color: var(--line); cursor: not-allowed; background: var(--surface-muted); }
 
 /* --- Campos ----------------------------------------------------------- */
@@ -164,3 +171,87 @@ body {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
 }
+
+/* ===================================================================
+   Tarjetas de módulo (tj-*)
+   Cada sección grande de la página vive dentro de una de estas, flotando
+   sobre --bg. La muesca es un clip-path por encima del border-radius: como
+   el punto (0 0) del polígono coincide con la esquina ya redondeada, esa
+   esquina queda intacta — solo la esquina superior derecha se corta en
+   diagonal. Las otras tres tarjetas de contenido comparten esta forma.
+   =================================================================== */
+.tj-card {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+.tj-card--notch {
+  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%);
+}
+
+/* Ficha cuadrada con la letra de categoría (E / M / C / A) */
+.tj-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1px solid var(--line-strong);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+  flex-shrink: 0;
+}
+
+/* Botón de navegación principal (Historial / Semanal), como en la referencia */
+.tj-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.tj-nav-btn:hover { background: var(--ink); color: var(--on-ink); }
+
+/* Píldora de texto para las notas (Tomorrow / Blockers), coloreada por columna */
+.tj-pill {
+  width: 100%;
+  border-radius: var(--radius-pill);
+  padding: 11px 18px;
+  font-size: 13px;
+  border: 1px solid transparent;
+  outline: none;
+  color: var(--ink);
+  transition: border-color 160ms ease;
+}
+.tj-pill::placeholder { color: color-mix(in srgb, var(--ink) 45%, transparent); }
+.tj-pill:focus { border-color: var(--ink); }
+.tj-pill--yellow { background: var(--accent); }
+.tj-pill--blue   { background: var(--accent-cyan); }
+
+/* Botón redondo para quitar una nota, del mismo color que su píldora */
+.tj-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+  cursor: pointer;
+  color: var(--ink);
+  border: none;
+  transition: filter 160ms ease;
+}
+.tj-dot:hover { filter: brightness(0.93); }
+.tj-dot--yellow { background: var(--accent); }
+.tj-dot--blue   { background: var(--accent-cyan); }
