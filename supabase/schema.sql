@@ -141,6 +141,9 @@ create index if not exists daily_reports_user_date_idx
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
+-- search_path fijo por higiene: evita que un search_path manipulado cambie a qué
+-- resuelven los nombres dentro de la función.
+set search_path = public
 as $$
 begin
   new.updated_at = now();

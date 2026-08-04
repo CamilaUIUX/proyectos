@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import AuthGate from '@/app/components/AuthGate'
+import AuthProvider from '@/app/components/AuthProvider'
 
 export const metadata: Metadata = {
   title: 'Daily',
@@ -33,7 +33,7 @@ export default function DailyLayout({ children }: { children: React.ReactNode })
         .daily-overlay { animation: daily-overlay-in 0.15s ease both; }
         .daily-modal   { animation: daily-modal-in 0.2s cubic-bezier(0.2, 0, 0, 1) both; }
       `}</style>
-      <AuthGate>{children}</AuthGate>
+      <AuthProvider>{children}</AuthProvider>
     </>
   )
 }

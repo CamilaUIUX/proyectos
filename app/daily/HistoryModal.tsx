@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 import { supabase, type DailyReportRow } from '@/lib/supabaseClient'
 import { formatDateKey } from '@/lib/reportUtils'
-import { useAuth } from '@/app/components/AuthGate'
+import { useAuthedUser } from '@/app/components/AuthProvider'
 
 export default function HistoryModal({ onClose }: { onClose: () => void }) {
-  const { isAdmin, user } = useAuth()
+  const { isAdmin, user } = useAuthedUser()
   const [rows, setRows] = useState<DailyReportRow[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')

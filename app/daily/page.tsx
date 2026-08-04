@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase, localDateKey, type ReportData } from '@/lib/supabaseClient'
 import { CATEGORY_META, MONTHS, type Category } from '@/lib/reportUtils'
-import { useAuth } from '@/app/components/AuthGate'
+import { useAuth } from '@/app/components/AuthProvider'
 import HistoryModal from './HistoryModal'
 import WeeklyModal from './WeeklyModal'
 
@@ -378,7 +378,8 @@ function copyStylesToWindow(target: Window) {
 
 // Scoped per user: a shared key would hand one person's files to whoever logs in next
 // on the same browser, and the autosave would then file them under that second account.
-function storageKey(userId: string): string { return `daily_files:${userId}` }
+// Sin sesión se usa 'anon', que mantiene el trabajo libre separado del de cada cuenta.
+function storageKey(userId: string | undefined): string { return `daily_files:${userId ?? 'anon'}` }
 
 export default function DailyPage() {
   const [edits, setEdits] = useState<FileEntry[]>([])
@@ -407,7 +408,10 @@ export default function DailyPage() {
   // instead of waiting forever for a fetch that will never run.
   const [cloudLoaded, setCloudLoaded] = useState(!supabase)
 
-  const { user, isAdmin, signOut } = useAuth()
+  // user es null mientras no haya sesión: la app sigue funcionando, solo que guardando
+  // en el navegador. Todo lo que toca la nube se activa únicamente cuando hay usuario.
+  const { user, isAdmin, signOut, openLogin, canSignIn } = useAuth()
+  const userId = user?.id
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -435,7 +439,7 @@ export default function DailyPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(storageKey(user.id))
+      const raw = localStorage.getItem(storageKey(userId))
       if (raw) {
         const parsed = JSON.parse(raw)
         // Yesterday's leftovers must not bleed into today: the day rolls over even if the
@@ -450,7 +454,7 @@ export default function DailyPage() {
         if (Array.isArray(parsed.artworkUploaded)) setArtworkUploaded(parsed.artworkUploaded)
       }
     } catch {}
-  }, [user.id])
+  }, [userId])
 
   useEffect(() => {
     if (!didLoad.current) {
@@ -458,11 +462,11 @@ export default function DailyPage() {
       return
     }
     try {
-      localStorage.setItem(storageKey(user.id), JSON.stringify({
+      localStorage.setItem(storageKey(userId), JSON.stringify({
         date: localDateKey(), edits, muCreated, checkingComponents, artworkUploaded,
       }))
     } catch {}
-  }, [edits, muCreated, checkingComponents, artworkUploaded, user.id])
+  }, [edits, muCreated, checkingComponents, artworkUploaded, userId])
 
   useEffect(() => {
     // Browsers only expose the Document Picture-in-Picture API in a secure context
@@ -510,14 +514,15 @@ export default function DailyPage() {
   }, [])
 
   // Pull today's report from Supabase. localStorage has already painted the screen by now,
-  // so this only matters when opening the day from a different computer.
+  // so this only matters when opening the day from a different computer. Sin sesión no se
+  // consulta nada: al iniciarla, este efecto se repite y trae lo que haya en la nube.
   useEffect(() => {
-    if (!supabase) return
+    if (!supabase || !userId) return
     let cancelled = false
     supabase
       .from('daily_reports')
       .select('content, data')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('report_date', localDateKey())
       .maybeSingle()
       .then(({ data }) => {
@@ -531,7 +536,7 @@ export default function DailyPage() {
         setCloudLoaded(true)
       })
     return () => { cancelled = true }
-  }, [user.id, applyReportData])
+  }, [userId, applyReportData])
 
   // Mirror of the newest values, so timers and handlers can save the current state without
   // being re-created (and without capturing stale values) on every keystroke.
@@ -544,10 +549,11 @@ export default function DailyPage() {
     }
   })
 
-  /** Writes today's report immediately. Used by the autosave, by Limpiar and at midnight. */
+  /** Writes today's report immediately. Used by the autosave, by Limpiar and at midnight.
+   *  Sin sesión no hace nada: el trabajo vive solo en el navegador. */
   const saveNow = useCallback(async () => {
     const db = supabase
-    if (!db) return
+    if (!db || !userId) return
     const s = latestRef.current
     const anyFiles = s.edits.length > 0 || s.muCreated.length > 0
       || s.checkingComponents.length > 0 || s.artworkUploaded.length > 0
@@ -563,7 +569,7 @@ export default function DailyPage() {
 
     setSaveState('saving')
     const { error } = await db.from('daily_reports').upsert(
-      { user_id: user.id, report_date: localDateKey(), content: s.displayText, data: payload },
+      { user_id: userId, report_date: localDateKey(), content: s.displayText, data: payload },
       { onConflict: 'user_id,report_date' }
     )
     if (error) {
@@ -574,15 +580,15 @@ export default function DailyPage() {
       setSaveState('saved')
       setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
     }
-  }, [user.id])
+  }, [userId])
 
   // Autosave, debounced so it writes once you stop typing rather than on every keystroke.
   useEffect(() => {
-    if (!supabase || !cloudLoaded || !hasFiles) return
+    if (!supabase || !userId || !cloudLoaded || !hasFiles) return
     const timer = setTimeout(() => { void saveNow() }, 1500)
     return () => clearTimeout(timer)
   }, [
-    cloudLoaded, hasFiles, displayText, saveNow,
+    cloudLoaded, hasFiles, displayText, saveNow, userId,
     edits, muCreated, checkingComponents, artworkUploaded, tomorrowBullets, blockerBullets,
   ])
 
@@ -739,7 +745,14 @@ export default function DailyPage() {
       // versions, silently ignoring a request this small — resizing explicitly
       // once the window's content is already in place (same as minimizePip does)
       // actually takes effect.
-      pipWin.resizeTo(180, 52)
+      //
+      // Con su propio catch a propósito: el navegador puede rechazar el resize si
+      // considera que la activación del clic ya caducó durante el await anterior.
+      // Para entonces la ventana ya está abierta y es usable, así que tratarlo como
+      // un fallo de apertura sería mentir en la consola.
+      try {
+        pipWin.resizeTo(180, 52)
+      } catch {}
     } catch (err) {
       console.error('No se pudo abrir la ventana flotante:', err)
     }
@@ -788,16 +801,22 @@ export default function DailyPage() {
         <header className="flex items-center justify-between gap-6 pb-4">
           <div className="flex items-center gap-3 min-w-0">
             <span className="ed-label shrink-0">Hub / Daily</span>
-            <span className="ed-label truncate hidden sm:inline">{user.email}</span>
+            {user && <span className="ed-label truncate hidden sm:inline">{user.email}</span>}
             {isAdmin && <span className="ed-chip ed-chip--accent shrink-0">Admin</span>}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="ed-label">
-              {saveState === 'saving' && 'Guardando'}
-              {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
-              {saveState === 'error' && 'Sin guardar'}
-            </span>
-            <button onClick={signOut} className="ed-btn ed-btn--quiet">Salir</button>
+            {user ? (
+              <>
+                <span className="ed-label">
+                  {saveState === 'saving' && 'Guardando'}
+                  {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
+                  {saveState === 'error' && 'Sin guardar'}
+                </span>
+                <button onClick={signOut} className="ed-btn ed-btn--quiet">Salir</button>
+              </>
+            ) : canSignIn && (
+              <button onClick={() => openLogin('signin')} className="ed-btn ed-btn--quiet">Entrar</button>
+            )}
           </div>
         </header>
         <div className="ed-rule" />
@@ -809,32 +828,39 @@ export default function DailyPage() {
               Daily
             </h1>
             <p className="text-sm text-[var(--ink-2)] mt-4 max-w-[38ch] leading-relaxed">
-              Genera tu reporte de actividad diaria. Se guarda solo mientras trabajas.
+              Genera tu reporte de actividad diaria.
+              {user
+                ? ' Se guarda solo mientras trabajas.'
+                : ' Se guarda en este navegador mientras trabajas.'}
             </p>
           </div>
 
-          {/* Herramientas, alineadas a la retícula */}
+          {/* Herramientas, alineadas a la retícula. Historial y semanal necesitan cuenta. */}
           <div className="lg:col-span-5 flex lg:justify-end items-start gap-2">
-            <button
-              onClick={() => setShowHistory(true)}
-              title={isAdmin ? 'Historial (ves el de todo el equipo)' : 'Ver mis reportes guardados'}
-              className="ed-icon-btn"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="16" rx="1" />
-                <path d="M7 9h10M7 13h10M7 17h6" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setShowWeekly(true)}
-              title="Reporte semanal (agrupado por cliente)"
-              className="ed-icon-btn"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="16" rx="1" />
-                <path d="M3 9h18M9 9v11" />
-              </svg>
-            </button>
+            {user && (
+              <>
+                <button
+                  onClick={() => setShowHistory(true)}
+                  title={isAdmin ? 'Historial (ves el de todo el equipo)' : 'Ver mis reportes guardados'}
+                  className="ed-icon-btn"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="16" rx="1" />
+                    <path d="M7 9h10M7 13h10M7 17h6" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setShowWeekly(true)}
+                  title="Reporte semanal (agrupado por cliente)"
+                  className="ed-icon-btn"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="16" rx="1" />
+                    <path d="M3 9h18M9 9v11" />
+                  </svg>
+                </button>
+              </>
+            )}
             {hasFiles && (
               <button onClick={handleClear} title="Limpiar (guarda antes de vaciar)" className="ed-icon-btn">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
@@ -862,6 +888,26 @@ export default function DailyPage() {
             </button>
           </div>
         </div>
+
+        {/* Invitación a registrarse: el historial y el semanal necesitan cuenta */}
+        {!user && canSignIn && (
+          <div className="ed-module p-5 mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+            <div className="flex flex-col gap-1.5">
+              <span className="ed-label">Historial</span>
+              <p className="text-sm leading-relaxed max-w-[52ch]">
+                Si quieres guardar el historial de tu actividad, regístrate aquí.
+                Tus reportes quedan guardados y los puedes consultar desde cualquier
+                computadora.
+              </p>
+            </div>
+            <button
+              onClick={() => openLogin('signup')}
+              className="ed-btn ed-btn--solid shrink-0 self-start sm:self-auto"
+            >
+              Registrarme
+            </button>
+          </div>
+        )}
 
         {/* Zona de carga */}
         <div className="flex items-center justify-between py-3 ed-rule">
@@ -1083,9 +1129,10 @@ export default function DailyPage() {
         pipContainer
       )}
 
-      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
+      {/* Ambos leen de la nube, así que solo existen con sesión iniciada. */}
+      {user && showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
 
-      {showWeekly && <WeeklyModal onClose={() => setShowWeekly(false)} />}
+      {user && showWeekly && <WeeklyModal onClose={() => setShowWeekly(false)} />}
     </div>
   )
 }

@@ -5,10 +5,20 @@ propia carpeta bajo `app/`.
 
 Incluye por ahora:
 - **Daily** (`app/daily/`) — generador de reporte de actividad diaria.
-  Guarda en `localStorage` (copia local instantánea) y, además, en Supabase:
-  cada persona tiene su cuenta, su historial y su reporte semanal.
 
-La portada (`/`) es pública. `/daily` pide iniciar sesión.
+Todo el sitio es de acceso libre: **el login es opcional**.
+
+| | Sin cuenta | Con cuenta |
+|---|---|---|
+| Generar el reporte del día | Sí | Sí |
+| Dónde se guarda | Solo en ese navegador | Navegador **y** Supabase |
+| Historial de días anteriores | — | Sí |
+| Reporte semanal | — | Sí |
+| Verlo desde otra computadora | — | Sí |
+
+Sin sesión no se toca la base de datos en ningún momento. Quien quiera historial se
+registra desde el bloque que aparece en `/daily`, y al iniciar sesión **lo que tenga en
+pantalla no se pierde**: pasa a guardarse en su cuenta.
 
 ## Cómo se guarda el trabajo
 

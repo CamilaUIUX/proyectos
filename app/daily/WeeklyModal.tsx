@@ -6,10 +6,10 @@ import {
   buildWeeklyReport, formatDateKey, addDaysToKey, recentWeekStarts,
   type DailyRowForWeek,
 } from '@/lib/reportUtils'
-import { useAuth } from '@/app/components/AuthGate'
+import { useAuthedUser } from '@/app/components/AuthProvider'
 
 export default function WeeklyModal({ onClose }: { onClose: () => void }) {
-  const { user } = useAuth()
+  const { user } = useAuthedUser()
   const weeks = recentWeekStarts(12)
   const [weekStart, setWeekStart] = useState(weeks[0])
   const [text, setText] = useState('')
