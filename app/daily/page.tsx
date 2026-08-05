@@ -406,6 +406,7 @@ export default function DailyPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [showWeekly, setShowWeekly] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [typedTitle, setTypedTitle] = useState('')
   // Starts already "loaded" when Supabase isn't configured, so the autosave below stays off
   // instead of waiting forever for a fetch that will never run.
   const [cloudLoaded, setCloudLoaded] = useState(!supabase)
@@ -438,6 +439,40 @@ export default function DailyPage() {
 
   const isFriday = mounted && new Date().getDay() === 5
   const isMonday = mounted && new Date().getDay() === 1
+
+  // Efecto máquina de escribir para el título "Daily": escribe, espera 2
+  // minutos, se borra y vuelve a escribir — en bucle mientras la página
+  // esté abierta. El cursor parpadea todo el tiempo vía CSS.
+  useEffect(() => {
+    const title = 'Daily'
+    const TYPE_DELAY = 120
+    const DELETE_DELAY = 70
+    const HOLD_BEFORE_ERASE = 2 * 60 * 1000
+    const PAUSE_BEFORE_RETYPE = 400
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout>
+
+    function type(i: number) {
+      timer = setTimeout(() => {
+        if (cancelled) return
+        setTypedTitle(title.slice(0, i))
+        if (i < title.length) type(i + 1)
+        else timer = setTimeout(() => erase(title.length), HOLD_BEFORE_ERASE)
+      }, TYPE_DELAY)
+    }
+
+    function erase(i: number) {
+      timer = setTimeout(() => {
+        if (cancelled) return
+        setTypedTitle(title.slice(0, i))
+        if (i > 0) erase(i - 1)
+        else timer = setTimeout(() => type(1), PAUSE_BEFORE_RETYPE)
+      }, DELETE_DELAY)
+    }
+
+    type(1)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [])
 
   useEffect(() => {
     try {
@@ -798,7 +833,7 @@ export default function DailyPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] px-6 sm:px-10 lg:px-16 py-10 pb-24">
-      <div className="max-w-5xl mx-auto flex flex-col gap-6">
+      <div className="max-w-5xl mx-auto flex flex-col gap-1.5">
 
         {/* Tarjeta 1: cabecera + título + zona de carga, con forma de folder:
             las pestañas de Historial/Semanal son hermanas de la tarjeta, no
@@ -811,7 +846,7 @@ export default function DailyPage() {
             </div>
           )}
 
-          <section className="tj-card tj-card--notch px-6 sm:px-10 pt-7 pb-9">
+          <section className="tj-card px-6 sm:px-10 pt-7 pb-9">
 
             {/* Barra de sistema */}
             <header className="flex flex-wrap items-center justify-between gap-4 pb-6">
@@ -870,7 +905,8 @@ export default function DailyPage() {
             <div className="flex items-start justify-between gap-6">
               <div className="min-w-0">
                 <h1 className="font-display text-6xl sm:text-7xl tracking-[-0.02em] leading-[0.95] text-[var(--ink)]">
-                  Daily
+                  {typedTitle}
+                  <span className="tj-caret" aria-hidden="true" />
                 </h1>
                 <p className="font-display text-lg sm:text-xl text-[var(--ink)] mt-4 leading-tight">
                   Genera tu reporte de actividad diaria
@@ -889,7 +925,7 @@ export default function DailyPage() {
 
           {/* Invitación a registrarse: el historial y el semanal necesitan cuenta */}
           {!user && canSignIn && (
-            <div className="ed-module p-5 mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+            <div className="ed-module p-5 mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
               <div className="flex flex-col gap-1.5">
                 <span className="ed-label">Historial</span>
                 <p className="text-sm leading-relaxed max-w-[52ch]">
@@ -908,7 +944,7 @@ export default function DailyPage() {
           )}
 
           {/* Zona de carga */}
-          <div className="flex items-center justify-between pt-9 pb-3">
+          <div className="flex items-center justify-between pt-4 pb-3">
             <span className="ed-label">Archivos</span>
             <span className="ed-label tabular-nums">
               {String(edits.length + muCreated.length + checkingComponents.length + artworkUploaded.length).padStart(2, '0')}
@@ -920,7 +956,7 @@ export default function DailyPage() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onClick={() => fileInputRef.current?.click()}
-            className={`cursor-pointer rounded-2xl border border-dashed flex flex-col items-center justify-center gap-3 py-14 px-8 select-none transition-colors duration-200 ${
+            className={`cursor-pointer rounded-2xl border border-dashed flex flex-col items-center justify-center gap-3 py-8 px-8 select-none transition-colors duration-200 ${
               isDragging
                 ? 'border-[var(--ink)] bg-[var(--accent)]'
                 : 'border-[var(--ink-3)] bg-[var(--surface-muted)] hover:border-[var(--ink-2)]'
@@ -958,7 +994,7 @@ export default function DailyPage() {
             <div className="flex flex-col gap-8">
               {allCategories.map(({ cat, files, onRemove }) => files.length > 0 && (
                 <div key={cat}>
-                  <h2 className="font-display text-2xl tracking-[-0.01em] text-[var(--ink)] mb-1">
+                  <h2 className="font-display text-lg sm:text-xl tracking-[-0.01em] text-[var(--ink)] mb-1">
                     {CATEGORY_META[cat].label}
                   </h2>
                   <div className="flex flex-col">
@@ -1012,7 +1048,7 @@ export default function DailyPage() {
 
           {/* Salida del reporte */}
           <div className="flex items-center justify-between py-3 ed-rule mt-8">
-            <span className="ed-label">Reporte</span>
+            <span className="font-display text-lg sm:text-xl text-[var(--ink)]">Reporte</span>
             <div className="flex items-center gap-3">
               <span className="ed-chip ed-chip--muted tabular-nums">{mounted ? todayLabel() : '—'}</span>
               {editedReport !== null && (
@@ -1033,9 +1069,7 @@ export default function DailyPage() {
             />
             <button
               onClick={handleCopy}
-              className={`w-full py-3.5 rounded-[var(--radius-pill)] font-medium text-[13px] uppercase tracking-[0.06em] cursor-pointer transition-colors duration-150 ${
-                copied ? 'bg-[var(--accent-mint)] text-[var(--ink)]' : 'bg-[var(--accent)] text-[var(--ink)] hover:brightness-95'
-              }`}
+              className={`ed-btn w-full !py-[11px] ${copied ? '!bg-[var(--accent-mint)] !border-[var(--accent-mint)]' : 'ed-btn--solid'}`}
             >
               {copied ? 'Copiado' : 'Copiar Daily'}
             </button>
