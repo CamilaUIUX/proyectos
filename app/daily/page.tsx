@@ -800,39 +800,43 @@ export default function DailyPage() {
     <div className="min-h-screen bg-[var(--bg)] px-6 sm:px-10 lg:px-16 py-10 pb-24">
       <div className="max-w-5xl mx-auto flex flex-col gap-6">
 
-        {/* Tarjeta 1: cabecera + título + zona de carga */}
-        <section className="tj-card tj-card--notch px-6 sm:px-10 pt-7 pb-9">
-
-          {/* Barra de sistema: el logo va acá cuando esté el arte final */}
-          <header className="flex flex-wrap items-center justify-between gap-4 pb-6">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="ed-label shrink-0">Hub / Daily</span>
-              {user && <span className="ed-label truncate hidden sm:inline">{user.email}</span>}
-              {isAdmin && <span className="ed-chip ed-chip--accent shrink-0">Admin</span>}
+        {/* Tarjeta 1: cabecera + título + zona de carga, con forma de folder:
+            las pestañas de Historial/Semanal son hermanas de la tarjeta, no
+            hijas — así pueden asomar por encima del borde superior. */}
+        <div className="relative">
+          {user && (
+            <div className="flex justify-end gap-2 pr-6 sm:pr-10 -mb-px">
+              <button onClick={() => setShowHistory(true)} className="tj-tab">Historial</button>
+              <button onClick={() => setShowWeekly(true)} className="tj-tab">Semanal</button>
             </div>
+          )}
 
-            {/* Todas las acciones juntas, como antes: nada queda escondido */}
-            <div className="flex items-center gap-2.5 shrink-0">
-              {user && (
-                <span className="ed-label hidden sm:inline mr-1">
-                  {saveState === 'saving' && 'Guardando'}
-                  {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
-                  {saveState === 'error' && 'Sin guardar'}
-                </span>
-              )}
-              {user && (
-                <>
-                  <button onClick={() => setShowHistory(true)} className="tj-nav-btn">Historial</button>
-                  <button onClick={() => setShowWeekly(true)} className="tj-nav-btn">Semanal</button>
-                </>
-              )}
-              {hasFiles && (
-                <button onClick={() => setShowClearConfirm(true)} title="Limpiar (guarda antes de vaciar)" className="ed-icon-btn">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
-                  </svg>
-                </button>
-              )}
+          <section className="tj-card tj-card--notch px-6 sm:px-10 pt-7 pb-9">
+
+            {/* Barra de sistema */}
+            <header className="flex flex-wrap items-center justify-between gap-4 pb-6">
+              <img src="/logo.svg" alt="Trabajajajar" className="h-6 sm:h-7 w-auto shrink-0" />
+
+              <div className="flex items-center gap-3 shrink-0">
+                {user && <span className="ed-label truncate hidden sm:inline">{user.email}</span>}
+                {isAdmin && <span className="ed-chip ed-chip--accent shrink-0">Admin</span>}
+                {user && (
+                  <span className="ed-label hidden sm:inline">
+                    {saveState === 'saving' && 'Guardando'}
+                    {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
+                    {saveState === 'error' && 'Sin guardar'}
+                  </span>
+                )}
+                {user ? (
+                  <button onClick={signOut} className="ed-btn ed-btn--quiet">Salir</button>
+                ) : canSignIn && (
+                  <button onClick={() => openLogin('signin')} className="ed-btn ed-btn--quiet">Entrar</button>
+                )}
+              </div>
+            </header>
+
+            {/* Acciones: minimizar / limpiar */}
+            <div className="flex flex-wrap items-center gap-2.5 pb-8">
               <button
                 onClick={openPip}
                 disabled={pipStatus !== 'ok'}
@@ -844,31 +848,44 @@ export default function DailyPage() {
                       ? 'Ventana flotante no disponible en este navegador (usa Chrome o Edge en computadora)'
                       : pipActive ? 'Cerrar ventana flotante' : 'Abrir ventana flotante'
                 }
-                className="ed-icon-btn"
+                className="tj-action-btn tj-action-btn--yellow"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="3" width="20" height="14" rx="1" />
                   <rect x="13" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none" />
                 </svg>
+                Minimizar
               </button>
-              {user ? (
-                <button onClick={signOut} className="ed-btn ed-btn--quiet">Salir</button>
-              ) : canSignIn && (
-                <button onClick={() => openLogin('signin')} className="ed-btn ed-btn--quiet">Entrar</button>
+              {hasFiles && (
+                <button onClick={() => setShowClearConfirm(true)} title="Limpiar (guarda antes de vaciar)" className="tj-action-btn tj-action-btn--blue">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
+                  </svg>
+                  Limpiar
+                </button>
               )}
             </div>
-          </header>
 
-          {/* Título */}
-          <h1 className="font-sans text-6xl sm:text-7xl font-extrabold tracking-[-0.02em] leading-[0.95] text-[var(--ink)]">
-            Daily
-          </h1>
-          <p className="text-sm text-[var(--ink-2)] mt-4 max-w-[46ch] leading-relaxed">
-            Genera tu reporte de actividad diaria.
-            {user
-              ? ' Se guarda solo mientras trabajas.'
-              : ' Se guarda en este navegador mientras trabajas.'}
-          </p>
+            {/* Título */}
+            <div className="flex items-start justify-between gap-6">
+              <div className="min-w-0">
+                <h1 className="font-display text-6xl sm:text-7xl tracking-[-0.02em] leading-[0.95] text-[var(--ink)]">
+                  Daily
+                </h1>
+                <p className="font-display text-lg sm:text-xl text-[var(--ink)] mt-4 leading-tight">
+                  Genera tu reporte de actividad diaria
+                </p>
+                <p className="font-sans text-sm text-[var(--ink-2)] mt-2 max-w-[38ch] sm:max-w-[80ch] leading-relaxed">
+                  Arrastra tus archivos, guarda los nombres automáticamente y copia tu daily a Slack en un clic. Al terminar la semana, exporta todo para tu timesheet.
+                </p>
+              </div>
+              <img
+                src="/hero-illustration.svg"
+                alt=""
+                aria-hidden="true"
+                className="hidden sm:block w-40 md:w-56 lg:w-64 xl:w-72 h-auto shrink-0 -mt-2"
+              />
+            </div>
 
           {/* Invitación a registrarse: el historial y el semanal necesitan cuenta */}
           {!user && canSignIn && (
@@ -932,7 +949,8 @@ export default function DailyPage() {
               onChange={handleInputChange}
             />
           </div>
-        </section>
+          </section>
+        </div>
 
         {/* Tarjeta 2: archivos por categoría */}
         <section className="tj-card px-6 sm:px-10 py-8">
@@ -940,7 +958,7 @@ export default function DailyPage() {
             <div className="flex flex-col gap-8">
               {allCategories.map(({ cat, files, onRemove }) => files.length > 0 && (
                 <div key={cat}>
-                  <h2 className="font-sans text-2xl font-extrabold tracking-[-0.01em] text-[var(--ink)] mb-1">
+                  <h2 className="font-display text-2xl tracking-[-0.01em] text-[var(--ink)] mb-1">
                     {CATEGORY_META[cat].label}
                   </h2>
                   <div className="flex flex-col">

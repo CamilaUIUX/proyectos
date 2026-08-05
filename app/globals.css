@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Registra la fuente de despliegue como utilidad de Tailwind: usar font-display
+   en cualquier clase, igual que font-sans / font-mono ya vienen por defecto. */
+@theme inline {
+  --font-display: var(--font-natify);
+}
+
 /* ===================================================================
    Sistema de diseño — Tarjetas sobre escritorio oscuro
    Módulos color crema con una muesca cortada en la esquina, flotando
@@ -9,10 +15,10 @@
 
 :root {
   /* Superficie de página: el "escritorio" oscuro detrás de las tarjetas */
-  --bg: #1C1B18;
+  --bg: #474747;
 
   /* Superficie de tarjeta: el papel crema donde vive todo el contenido */
-  --surface:       #F1ECDC;
+  --surface:       #F1EFDF;
   --surface-muted: #E7E0C8;
 
   /* Tinta, para texto sobre --surface (crema) */
@@ -28,7 +34,7 @@
   --line-strong: #211F1A;
 
   /* Acentos — amarillo para "mañana", celeste para "bloqueos" */
-  --accent:      #F0CB4E;
+  --accent:      #FFF18A;
   --accent-mint: #BEE8C7;
   --accent-cyan: #CFDBF0;
 
@@ -204,23 +210,42 @@ body {
   flex-shrink: 0;
 }
 
-/* Botón de navegación principal (Historial / Semanal), como en la referencia */
-.tj-nav-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 18px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--line-strong);
-  background: transparent;
-  color: var(--ink);
+/* Pestaña de folder (Historial / Semanal): mismo color que --surface y pegada
+   al borde superior de la tarjeta (margen negativo), para que se lea como una
+   sola pieza de papel recortada — no como un botón flotando encima. */
+.tj-tab {
+  border: none;
+  background: var(--surface);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 10px 20px 13px;
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: var(--ink-2);
   cursor: pointer;
-  transition: background-color 160ms ease, color 160ms ease;
+  transition: color 160ms ease, background-color 160ms ease;
 }
-.tj-nav-btn:hover { background: var(--ink); color: var(--on-ink); }
+.tj-tab:hover { color: var(--ink); background: var(--surface-muted); }
+
+/* Botón de acción en píldora sólida (Minimizar / Limpiar) */
+.tj-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
+  border: none;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  transition: filter 160ms ease, opacity 160ms ease;
+}
+.tj-action-btn:hover:not(:disabled) { filter: brightness(0.95); }
+.tj-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.tj-action-btn--yellow { background: var(--accent); }
+.tj-action-btn--blue   { background: var(--accent-cyan); }
 
 /* Píldora de texto para las notas (Tomorrow / Blockers), coloreada por columna */
 .tj-pill {
