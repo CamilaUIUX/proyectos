@@ -7,6 +7,7 @@ import { CATEGORY_META, MONTHS, type Category } from '@/lib/reportUtils'
 import { useAuth } from '@/app/components/AuthProvider'
 import HistoryModal from './HistoryModal'
 import WeeklyModal from './WeeklyModal'
+import NotesModal from './NotesModal'
 
 interface FileEntry { id: string; name: string }
 interface Bullet { id: string; text: string }
@@ -405,6 +406,7 @@ export default function DailyPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [showWeekly, setShowWeekly] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [typedTitle, setTypedTitle] = useState('')
   // Starts already "loaded" when Supabase isn't configured, so the autosave below stays off
@@ -843,6 +845,9 @@ export default function DailyPage() {
             <div className="flex justify-end gap-2 pr-6 sm:pr-10 -mb-px">
               <button onClick={() => setShowHistory(true)} className="tj-tab">Historial</button>
               <button onClick={() => setShowWeekly(true)} className="tj-tab">Semanal</button>
+              {isAdmin && (
+                <button onClick={() => setShowNotes(true)} className="tj-tab">Notas</button>
+              )}
             </div>
           )}
 
@@ -1202,6 +1207,8 @@ export default function DailyPage() {
       {user && showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
 
       {user && showWeekly && <WeeklyModal onClose={() => setShowWeekly(false)} />}
+
+      {user && isAdmin && showNotes && <NotesModal onClose={() => setShowNotes(false)} />}
     </div>
   )
 }

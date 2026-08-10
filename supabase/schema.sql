@@ -258,7 +258,49 @@ create policy weekly_reports_delete
 
 
 -- ---------------------------------------------------------------------
---  8. RED DE SEGURIDAD
+--  8. NOTAS DE ADMIN
+-- ---------------------------------------------------------------------
+--  Bloc de notas libre, solo para administradores (recordatorios sobre
+--  clientes). Una sola fila por persona, sin fecha: cada guardado
+--  sobrescribe la misma fila, así que nunca "vence" ni se borra sola con
+--  el tiempo — solo cambia cuando el admin la edita.
+
+create table if not exists public.admin_notes (
+  user_id    uuid primary key references public.profiles(id) on delete cascade,
+  content    text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+alter table public.admin_notes enable row level security;
+
+drop trigger if exists admin_notes_touch_updated_at on public.admin_notes;
+create trigger admin_notes_touch_updated_at
+  before update on public.admin_notes
+  for each row execute function public.touch_updated_at();
+
+-- Solo administradores, y cada quien únicamente su propia nota.
+drop policy if exists admin_notes_select on public.admin_notes;
+create policy admin_notes_select
+  on public.admin_notes for select
+  to authenticated
+  using (user_id = auth.uid() and public.is_admin());
+
+drop policy if exists admin_notes_insert on public.admin_notes;
+create policy admin_notes_insert
+  on public.admin_notes for insert
+  to authenticated
+  with check (user_id = auth.uid() and public.is_admin());
+
+drop policy if exists admin_notes_update on public.admin_notes;
+create policy admin_notes_update
+  on public.admin_notes for update
+  to authenticated
+  using (user_id = auth.uid() and public.is_admin())
+  with check (user_id = auth.uid() and public.is_admin());
+
+
+-- ---------------------------------------------------------------------
+--  9. RED DE SEGURIDAD
 -- ---------------------------------------------------------------------
 --  El paso 3 hace admin al registrarse. Esto cubre el caso contrario:
 --  que la cuenta ya existiera antes de ejecutar este archivo.
