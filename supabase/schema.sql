@@ -83,6 +83,14 @@ begin
     case when lower(coalesce(new.email, '')) = any(admin_emails) then 'admin' else 'member' end
   )
   on conflict (id) do nothing;
+
+  -- Acceso por defecto: solo Daily. Cualquier otra mini-app que exista o se
+  -- agregue después queda cerrada hasta que un admin la habilite desde /admin
+  -- (ver sección 10, app_access).
+  insert into public.app_access (user_id, app_slug)
+  values (new.id, 'daily')
+  on conflict (user_id, app_slug) do nothing;
+
   return new;
 end;
 $$;
@@ -309,3 +317,49 @@ update public.profiles
    set role = 'admin'
  where lower(email) = any (array['camilamoratosoria@gmail.com'])
    and role <> 'admin';
+
+
+-- ---------------------------------------------------------------------
+--  10. ACCESO POR MINI-APP (app_access)
+-- ---------------------------------------------------------------------
+--  Qué mini-apps puede usar cada cuenta. Al registrarse solo se otorga
+--  'daily' (ver el trigger de la sección 3) — cualquier otra mini-app que
+--  se agregue después queda cerrada hasta que un admin la habilite para
+--  esa persona desde /admin.
+--
+--  Los admins no necesitan fila aquí: is_admin() les da acceso a todo sin
+--  pasar por esta tabla (ver app/components/AuthProvider.tsx, hasAppAccess).
+
+create table if not exists public.app_access (
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  app_slug   text not null,
+  granted_at timestamptz not null default now(),
+  primary key (user_id, app_slug)
+);
+
+alter table public.app_access enable row level security;
+
+-- Cada quien ve sus propios accesos; el admin ve (y otorga/revoca) los de todos.
+drop policy if exists app_access_select on public.app_access;
+create policy app_access_select
+  on public.app_access for select
+  to authenticated
+  using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists app_access_insert on public.app_access;
+create policy app_access_insert
+  on public.app_access for insert
+  to authenticated
+  with check (public.is_admin());
+
+drop policy if exists app_access_delete on public.app_access;
+create policy app_access_delete
+  on public.app_access for delete
+  to authenticated
+  using (public.is_admin());
+
+-- Red de seguridad: quienes ya tenían cuenta antes de que existiera esta
+-- tabla no deben perder el acceso a Daily que ya tenían.
+insert into public.app_access (user_id, app_slug)
+select id, 'daily' from public.profiles
+on conflict (user_id, app_slug) do nothing;

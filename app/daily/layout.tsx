@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import AuthProvider from '@/app/components/AuthProvider'
+import { MiniAppGate } from '@/app/components/MiniAppGate'
 
 export const metadata: Metadata = {
   title: 'Daily',
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function DailyLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <MiniAppGate slug="daily">
       <style>{`
         /* Microanimaciones de 150-250 ms: desplazamientos mínimos, sin rebotes ni escala
            llamativa. El movimiento solo confirma el cambio, nunca decora. */
@@ -33,7 +33,7 @@ export default function DailyLayout({ children }: { children: React.ReactNode })
         .daily-overlay { animation: daily-overlay-in 0.15s ease both; }
         .daily-modal   { animation: daily-modal-in 0.2s cubic-bezier(0.2, 0, 0, 1) both; }
       `}</style>
-      <AuthProvider>{children}</AuthProvider>
-    </>
+      {children}
+    </MiniAppGate>
   )
 }

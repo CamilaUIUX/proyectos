@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Gabarito, IBM_Plex_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
+import AuthProvider, { AuthGate } from '@/app/components/AuthProvider'
+import AccountBar from '@/app/components/AccountBar'
 import './globals.css'
 
 // Redondeada y amigable para todo el texto; mono técnica para el reporte y los
@@ -33,7 +35,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={`${gabarito.variable} ${plexMono.variable} ${natify.variable}`}>
       <body>
-        {children}
+        <AuthProvider>
+          <AuthGate>
+            <AccountBar />
+            {children}
+          </AuthGate>
+        </AuthProvider>
       </body>
     </html>
   )

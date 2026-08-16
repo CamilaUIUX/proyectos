@@ -191,8 +191,25 @@ body {
   background: var(--surface);
   border-radius: var(--radius);
 }
+/* El corte va a 45° con las dos puntas redondeadas (radio 14px). polygon()
+   no dibuja arcos, así que cada punta se aproxima con puntos sobre el
+   círculo tangente a sus dos bordes — los números salen de esa geometría
+   (ángulo del corte 135°, radio 14px), no son arbitrarios. Si --notch
+   cambia de tamaño hay que recalcularlos. */
 .tj-card--notch {
-  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 53.8px) 0,
+    calc(100% - 50.18px) 0.48px,
+    calc(100% - 46.8px) 1.88px,
+    calc(100% - 43.9px) 4.1px,
+    calc(100% - 4.1px) 43.9px,
+    calc(100% - 1.88px) 46.8px,
+    calc(100% - 0.48px) 50.18px,
+    100% 53.8px,
+    100% 100%,
+    0 100%
+  );
 }
 
 /* Ficha cuadrada con la letra de categoría (E / M / C / A) */

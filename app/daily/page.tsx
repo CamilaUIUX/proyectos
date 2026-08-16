@@ -415,7 +415,7 @@ export default function DailyPage() {
 
   // user es null mientras no haya sesión: la app sigue funcionando, solo que guardando
   // en el navegador. Todo lo que toca la nube se activa únicamente cuando hay usuario.
-  const { user, isAdmin, signOut, openLogin, canSignIn } = useAuth()
+  const { user, isAdmin } = useAuth()
   const userId = user?.id
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -858,19 +858,12 @@ export default function DailyPage() {
               <img src="/logo.svg" alt="Trabajajajar" className="h-6 sm:h-7 w-auto shrink-0" />
 
               <div className="flex items-center gap-3 shrink-0">
-                {user && <span className="ed-label truncate hidden sm:inline">{user.email}</span>}
-                {isAdmin && <span className="ed-chip ed-chip--accent shrink-0">Admin</span>}
                 {user && (
                   <span className="ed-label hidden sm:inline">
                     {saveState === 'saving' && 'Guardando'}
                     {saveState === 'saved' && `Guardado ${savedAt ?? ''}`}
                     {saveState === 'error' && 'Sin guardar'}
                   </span>
-                )}
-                {user ? (
-                  <button onClick={signOut} className="ed-btn ed-btn--quiet">Salir</button>
-                ) : canSignIn && (
-                  <button onClick={() => openLogin('signin')} className="ed-btn ed-btn--quiet">Entrar</button>
                 )}
               </div>
             </header>
@@ -927,26 +920,6 @@ export default function DailyPage() {
                 className="hidden sm:block w-40 md:w-56 lg:w-64 xl:w-72 h-auto shrink-0 -mt-2"
               />
             </div>
-
-          {/* Invitación a registrarse: el historial y el semanal necesitan cuenta */}
-          {!user && canSignIn && (
-            <div className="ed-module p-5 mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-              <div className="flex flex-col gap-1.5">
-                <span className="ed-label">Historial</span>
-                <p className="text-sm leading-relaxed max-w-[52ch]">
-                  Si quieres guardar el historial de tu actividad, regístrate aquí.
-                  Tus reportes quedan guardados y los puedes consultar desde cualquier
-                  computadora.
-                </p>
-              </div>
-              <button
-                onClick={() => openLogin('signup')}
-                className="ed-btn ed-btn--solid shrink-0 self-start sm:self-auto"
-              >
-                Registrarme
-              </button>
-            </div>
-          )}
 
           {/* Zona de carga */}
           <div className="flex items-center justify-between pt-4 pb-3">

@@ -6,19 +6,11 @@ propia carpeta bajo `app/`.
 Incluye por ahora:
 - **Daily** (`app/daily/`) — generador de reporte de actividad diaria.
 
-Todo el sitio es de acceso libre: **el login es opcional**.
-
-| | Sin cuenta | Con cuenta |
-|---|---|---|
-| Generar el reporte del día | Sí | Sí |
-| Dónde se guarda | Solo en ese navegador | Navegador **y** Supabase |
-| Historial de días anteriores | — | Sí |
-| Reporte semanal | — | Sí |
-| Verlo desde otra computadora | — | Sí |
-
-Sin sesión no se toca la base de datos en ningún momento. Quien quiera historial se
-registra desde el bloque que aparece en `/daily`, y al iniciar sesión **lo que tenga en
-pantalla no se pierde**: pasa a guardarse en su cuenta.
+**El login es obligatorio para todo el sitio**, no solo para Daily: sin sesión
+iniciada no se ve ninguna página, ni siquiera la del Hub. El gate vive en
+`app/layout.tsx` (`<AuthProvider>` + `<AuthGate>`), así que cualquier mini-app
+nueva queda protegida automáticamente sin tener que hacer nada extra en su
+propio `layout.tsx`.
 
 ## Cómo se guarda el trabajo
 
@@ -67,15 +59,39 @@ pantalla no se pierde**: pasa a guardarse en su cuenta.
   admin.
 - Para hacer admin a alguien: Supabase → Table Editor → `profiles` → cambiar
   `member` por `admin`. No se puede hacer desde la app, a propósito.
+- **Acceso por mini-app**: tener cuenta no da acceso a todo. Al registrarse,
+  cada cuenta recibe acceso solo a **Daily** (tabla `app_access`, ver
+  `supabase/schema.sql`); cualquier otra mini-app que se agregue después
+  queda cerrada hasta que un admin la habilite para esa persona. Los admins
+  no dependen de esta tabla: tienen acceso a todo siempre.
+
+## Panel de administración (`/admin`)
+
+- Solo lo ven las cuentas con `role = 'admin'` — el resto recibe un aviso de
+  "sin acceso" si entra directo por la URL. Desde el Hub (`/`), los admins
+  ven un botón "Admin" arriba a la derecha; nadie más lo ve.
+- Lista todas las cuentas registradas con su correo, su rol, y una casilla
+  por cada mini-app (columnas sacadas de `lib/miniApps.ts`) para otorgar o
+  quitar el acceso. Los admins salen con todas las casillas marcadas y
+  deshabilitadas, porque su acceso no pasa por esta tabla.
+- Cada cambio escribe directo en `app_access` (RLS exige `is_admin()` para
+  insertar o borrar filas ahí — ver sección 10 de `supabase/schema.sql`).
 
 ## Cómo agregar otra mini-app después
 
 1. Crear una carpeta nueva en `app/<slug>/` con su `page.tsx` (y `layout.tsx`
    si necesita algo propio, como estilos o animaciones específicas).
-2. Agregarla al arreglo `MINI_APPS` en `app/page.tsx` para que aparezca en
-   la página de inicio.
-3. Si esa mini-app necesita login, envolver sus `children` en `<AuthGate>`
-   dentro de su `layout.tsx`, igual que hace `app/daily/layout.tsx`.
+2. Agregarla al arreglo `MINI_APPS` en `lib/miniApps.ts` para que aparezca
+   en el Hub (para quien tenga acceso) y como columna nueva en `/admin`.
+3. Envolver sus `children` en `<MiniAppGate slug="<slug>">` dentro de su
+   `layout.tsx`, igual que hace `app/daily/layout.tsx`. Sin esto, cualquiera
+   con sesión podría entrar aunque no tenga el acceso otorgado.
+4. Por defecto nadie la tiene (ni siquiera quien ya usa Daily): un admin
+   debe otorgarla desde `/admin`.
+
+No hace falta nada más para el login en sí: `<AuthGate>` ya envuelve todo el
+sitio desde `app/layout.tsx`, así que la mini-app nueva ya requiere sesión
+iniciada sin tener que hacer nada extra para eso.
 
 ## Puesta en marcha (primera vez)
 
@@ -87,7 +103,9 @@ npm install
    archivo `.env.local` (ver `NEXT_PUBLIC_SUPABASE_URL` y
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Ese archivo no se sube a git.
 2. **Supabase → SQL Editor**: pegar y ejecutar `supabase/schema.sql`. Crea
-   las tablas, los permisos (RLS) y la regla del dominio de correo.
+   las tablas, los permisos (RLS) y la regla del dominio de correo. Se puede
+   volver a pegar y correr entero cada vez que el archivo cambie (como al
+   agregar la tabla `app_access`) — no borra datos ni duplica nada.
 3. **Supabase → Authentication → Providers**: dejar *Email* activado.
 4. `npm run dev` y abrir `http://localhost:3000`.
 
@@ -147,6 +165,6 @@ A o CNAME en el proveedor de DNS del dominio).
 
 - El nombre "Hub" en el título/`layout.tsx`/página de inicio es un
   placeholder — cambiarlo por el nombre que se quiera para este proyecto.
-- No hay ningún sistema de autenticación ni control de acceso — todo el
-  proyecto es público por diseño, igual que ya era la mini-app Daily dentro
-  de Acero Hub.
+- Todo el sitio requiere cuenta (ver "Cuentas y permisos" arriba). Sin las
+  claves de Supabase en `.env.local`, `<AuthGate>` muestra una pantalla de
+  configuración pendiente en vez de dejar pasar a nadie.

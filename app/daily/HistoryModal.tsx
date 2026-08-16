@@ -12,7 +12,9 @@ export default function HistoryModal({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [personFilter, setPersonFilter] = useState<string>('all')
+  // Por defecto cada quien ve solo lo suyo, aunque sea admin y reciba las filas de
+  // todos por RLS — ver el resto del equipo es una elección explícita desde el select.
+  const [personFilter, setPersonFilter] = useState<string>('mine')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   useEffect(() => {

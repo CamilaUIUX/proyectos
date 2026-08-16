@@ -21,6 +21,12 @@ export interface Profile {
   role: UserRole
 }
 
+/** Fila de app_access: qué mini-app (por slug) puede usar cada cuenta. */
+export interface AppAccessRow {
+  user_id: string
+  app_slug: string
+}
+
 /** Shape stored in daily_reports.data — enough to reopen a past day exactly as it was. */
 export interface ReportData {
   edits: { id: string; name: string }[]
