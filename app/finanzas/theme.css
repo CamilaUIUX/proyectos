@@ -190,6 +190,11 @@ html:has(#fz-root), body:has(#fz-root) {
   padding: var(--fz-s6);
   overflow: hidden;
   min-width: 0;
+  /* Safari: un item de grid con `align-items: stretch` cae a `min-height:
+     auto` (su contenido) en vez de estirarse — en vez del bug contrario
+     (Chrome), a veces WebKit lo resuelve mal y termina estirando de más.
+     Fijarlo en 0 fuerza el cálculo correcto en los dos motores. */
+  min-height: 0;
 }
 .fz-hero__label {
   font-size: 13px;
@@ -246,7 +251,12 @@ html:has(#fz-root), body:has(#fz-root) {
   margin-top: var(--fz-s4);
 }
 @media (min-width: 900px) {
-  .fz-quick-actions { grid-template-columns: 1fr; margin-top: 0; height: 100%; }
+  /* Sin `height: 100%` — sin `grid-template-rows` a juego no hacía estirar
+     los 3 botones (siguen a su alto de contenido), y en Safari un
+     porcentaje de alto sobre un item de grid estirado por `align-items:
+     stretch` es justo el combo que dispara el bug de arriba. `min-height:
+     0` es el mismo fix que en .fz-hero, para el otro lado del mismo grid. */
+  .fz-quick-actions { grid-template-columns: 1fr; margin-top: 0; min-height: 0; }
 }
 .fz-quick-action {
   display: flex;
@@ -794,6 +804,7 @@ select.fz-input { cursor: pointer; }
   flex-wrap: wrap;
   gap: var(--fz-s5);
   align-items: center;
+  min-height: 0;
 }
 .fz-donut-wrap {
   position: relative;
@@ -804,7 +815,12 @@ select.fz-input { cursor: pointer; }
 }
 .fz-donut-center {
   position: absolute;
-  inset: 0;
+  /* `top/right/bottom/left` en vez del shorthand `inset` — mismo resultado,
+     sin depender de que el navegador lo soporte. */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
