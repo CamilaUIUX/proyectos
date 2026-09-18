@@ -1,0 +1,9 @@
+# Primera vez que este repo despliega una Edge Function (sprint-9-
+# notificaciones.md §7) — hasta ahora todo el trabajo de Supabase era pegar
+# SQL a mano en el editor. `project_id` lo completa `supabase link`.
+
+[functions.finanzas-notificaciones]
+# Sin JWT de usuario: la invoca pg_cron vía pg_net, no el cliente. La
+# autenticación real es el header `x-cron-secret` que verifica
+# _shared/internal-auth.ts, no el sistema de JWT de Supabase.
+verify_jwt = false

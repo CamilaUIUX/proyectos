@@ -10,4 +10,5 @@ export interface MiniApp {
 // nadie la tiene, salvo 'daily' al registrarse (ver supabase/schema.sql).
 export const MINI_APPS: MiniApp[] = [
   { name: 'Daily', slug: 'daily', description: 'Genera tu reporte de actividad diaria' },
+  { name: 'Finanzas', slug: 'finanzas', description: 'Tus cuentas y movimientos, personal y multi-moneda' },
 ]

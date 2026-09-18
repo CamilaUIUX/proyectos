@@ -1,0 +1,827 @@
+/* Finanzas — tokens y estilos propios. NO toca app/globals.css: todo vive
+ * bajo #fz-root, igual que documenta contexto_ui_finanzas.md del proyecto
+ * de referencia. Sin modo oscuro en esta v1. */
+
+#fz-root {
+  /* ── Superficies ─────────────────────────────────── */
+  --fz-canvas:        #F3F4F6;
+  --fz-surface:       #FFFFFF;
+  --fz-surface-sunk:  #FAFAFB;
+  --fz-hero:          #12281D;
+  --fz-hairline:      #ECEDF0;
+
+  /* ── Texto ───────────────────────────────────────── */
+  --fz-ink:           #12131A;
+  --fz-ink-2:         #6B7078;
+  --fz-ink-3:         #9CA1A9;
+  --fz-ink-invert:    #FFFFFF;
+
+  /* ── Principal: verde bosque. Solo superficies llenas. ───────────── */
+  --fz-accent:        #16613C;
+  --fz-accent-press:  #0F4A2D;
+  --fz-accent-tint:   #E4F0E9;
+
+  /* ── Secundario: lima. Solo sobre superficies oscuras. ───────────── */
+  --fz-lime:          #C8F169;
+  --fz-lime-ink:      #12281D;
+
+  /* ── Semántica de dinero: la única razón para rojo/verde fuera de marca.
+     --fz-out es guindo (no rojo puro): revisión del proyecto de referencia
+     tras feedback real — el rojo brillante se leía como alarma. ──────── */
+  --fz-in:            #16A34A;
+  --fz-in-text:       #15803D;
+  --fz-in-tint:       #E3F5E9;
+  --fz-out:           #B8434A;
+  --fz-out-text:      #8B2E33;
+  --fz-out-tint:      #FDE9EA;
+
+  /* ── Ahorro: azul. La 4ª excepción a "el color es solo marca y dinero"
+     (sprint-6-ahorro.md §0). Guardar no es ingreso ni gasto — es plata tuya
+     que cambia de estado. Acotado a la pantalla de Ahorros. ──────────── */
+  --fz-save:          #2563EB;
+  --fz-save-text:     #1D4ED8;
+  --fz-save-tint:     #E5EDFD;
+
+  /* ── Neutro: todo ícono que no es dinero (categoría, nav). ───────── */
+  --fz-tint-neutral:    #EEF0F2;
+  --fz-tint-neutral-fg: #4B5259;
+
+  /* ── Radios ──────────────────────────────────────── */
+  --fz-r-card:   24px;
+  --fz-r-tile:   20px;
+  --fz-r-chip:   14px;
+  --fz-r-field:  16px;
+  --fz-r-pill:   999px;
+
+  /* ── Sombras (casi invisibles a propósito) ───────── */
+  --fz-sh-rest:  0 1px 2px rgba(16,24,40,.04);
+  --fz-sh-float: 0 4px 12px rgba(16,24,40,.06), 0 16px 32px rgba(16,24,40,.06);
+  --fz-sh-modal: 0 24px 64px rgba(16,24,40,.18);
+
+  /* ── Espaciado ───────────────────────────────────── */
+  --fz-s1: 4px;  --fz-s2: 8px;  --fz-s3: 12px; --fz-s4: 16px;
+  --fz-s5: 20px; --fz-s6: 24px; --fz-s8: 32px; --fz-s10: 40px;
+
+  background: var(--fz-canvas);
+  color: var(--fz-ink);
+  font-family: var(--fz-font, 'Plus Jakarta Sans', system-ui, sans-serif);
+  font-feature-settings: "kern", "liga";
+  min-height: 100vh;
+}
+
+/* ── Acento por perfil (Sprint 8) ───────────────────────────────────────
+ * `data-accent` en #fz-root reescribe los 3 tokens de --fz-accent — nada
+ * más: los 88 usos en la app ya leen el token, cero componentes tocados
+ * (sprint-8-perfiles.md §4.10). 'verde' (la marca) es el default del
+ * #fz-root base de arriba y no necesita bloque propio acá. Azul reservado
+ * — ya es --fz-save. Se escribe el atributo ANTES del primer paint (ver
+ * layout.tsx), nunca en un useEffect normal, para no repetir el frame
+ * pintado en verde que tuvo la referencia. */
+#fz-root[data-accent='naranja'] {
+  --fz-accent:       #C2410C;
+  --fz-accent-press: #9A3412;
+  --fz-accent-tint:  #FDF0E7;
+}
+#fz-root[data-accent='violeta'] {
+  --fz-accent:       #6D28D9;
+  --fz-accent-press: #5B21B6;
+  --fz-accent-tint:  #F1EBFC;
+}
+#fz-root[data-accent='magenta'] {
+  --fz-accent:       #9D174D;
+  --fz-accent-press: #831843;
+  --fz-accent-tint:  #FCE8F0;
+}
+#fz-root[data-accent='teal'] {
+  --fz-accent:       #0F766E;
+  --fz-accent-press: #0C5C56;
+  --fz-accent-tint:  #E3F2F0;
+}
+
+/* El negro/gris del Hub no debe asomar detrás de la barra de estado del
+ * iPhone ni en el rebote del scroll mientras Finanzas está montada. */
+html:has(#fz-root), body:has(#fz-root) {
+  background-color: #F3F4F6;
+  overscroll-behavior-y: none;
+}
+
+#fz-root * { box-sizing: border-box; }
+
+#fz-root .fz-tabular { font-variant-numeric: tabular-nums; }
+
+/* ── Layout raíz ─────────────────────────────────────────────────────── */
+.fz-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.fz-content {
+  flex: 1;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--fz-s5) var(--fz-s4) calc(104px + env(safe-area-inset-bottom));
+  overflow-x: clip;
+  min-width: 0;
+}
+@media (min-width: 900px) {
+  .fz-content {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    gap: 20px;
+    padding: var(--fz-s6) var(--fz-s6) var(--fz-s10);
+    align-items: start;
+  }
+  .fz-content > .fz-main { min-width: 0; }
+}
+
+/* ── Panel / tarjeta base ────────────────────────────────────────────── */
+.fz-panel {
+  background: var(--fz-surface);
+  border-radius: var(--fz-r-card);
+  box-shadow: var(--fz-sh-rest);
+  padding: var(--fz-s5);
+  min-width: 0;
+}
+.fz-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fz-s3);
+  margin-bottom: var(--fz-s3);
+}
+.fz-section-title h2 {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+.fz-section-title a, .fz-section-title button.fz-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fz-ink-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fz-section-title a:hover, .fz-section-title button.fz-link:hover { color: var(--fz-accent); }
+
+/* Uso general (no solo dentro de fz-section-title): botón/enlace de texto,
+ * como el "MAX" del quick-add o "Ver todas". */
+.fz-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fz-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.fz-link:hover { text-decoration: underline; }
+
+/* ── Hero de patrimonio ──────────────────────────────────────────────── */
+.fz-hero {
+  position: relative;
+  background-color: var(--fz-hero);
+  background-image: radial-gradient(120% 140% at 100% 0%, rgba(255,255,255,0.06) 0%, transparent 60%);
+  color: var(--fz-ink-invert);
+  border-radius: var(--fz-r-card);
+  padding: var(--fz-s6);
+  overflow: hidden;
+  min-width: 0;
+}
+.fz-hero__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.6);
+}
+.fz-hero__amount {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin-top: 6px;
+  word-break: break-word;
+}
+@media (max-width: 400px) {
+  .fz-hero__amount { font-size: 30px; }
+}
+.fz-hero__delta {
+  margin-top: var(--fz-s3);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fz-hero__fx {
+  margin-top: var(--fz-s2);
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+}
+
+/* ── Toggle de ocultar (único, vive en el header) ───────────────────── */
+.fz-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--fz-r-pill);
+  border: none;
+  background: var(--fz-surface);
+  color: var(--fz-ink-2);
+  cursor: pointer;
+  box-shadow: var(--fz-sh-rest);
+  flex-shrink: 0;
+}
+.fz-eye:active { transform: scale(0.94); }
+
+/* ── Acciones rápidas bajo el hero ──────────────────────────────────── */
+.fz-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--fz-s2);
+  margin-top: var(--fz-s4);
+}
+@media (min-width: 900px) {
+  .fz-quick-actions { grid-template-columns: 1fr; margin-top: 0; height: 100%; }
+}
+.fz-quick-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: var(--fz-s3) var(--fz-s2);
+  background: var(--fz-surface);
+  border-radius: var(--fz-r-tile);
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--fz-sh-rest);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fz-ink);
+}
+.fz-quick-action:active { transform: scale(0.97); }
+.fz-quick-action svg { color: var(--fz-accent); }
+@media (min-width: 900px) {
+  .fz-quick-action {
+    flex-direction: row;
+    justify-content: flex-start;
+    flex: 1;
+    width: 100%;
+  }
+}
+
+@media (min-width: 900px) {
+  .fz-hero-row {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: var(--fz-s4);
+    align-items: stretch;
+  }
+}
+
+/* ── Tiles de resumen ────────────────────────────────────────────────── */
+.fz-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--fz-s3);
+}
+@media (min-width: 900px) {
+  .fz-tiles { grid-template-columns: repeat(2, 1fr); }
+}
+.fz-tile {
+  border-radius: var(--fz-r-tile);
+  padding: var(--fz-s4);
+  min-width: 0;
+}
+.fz-tile--in  { background: var(--fz-in-tint); }
+.fz-tile--out { background: var(--fz-out-tint); }
+.fz-tile__icon {
+  width: 36px; height: 36px;
+  border-radius: var(--fz-r-chip);
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.6);
+  margin-bottom: var(--fz-s2);
+}
+.fz-tile--in .fz-tile__icon  { color: var(--fz-in-text); }
+.fz-tile--out .fz-tile__icon { color: var(--fz-out-text); }
+.fz-tile__label { font-size: 13px; font-weight: 500; color: var(--fz-ink-2); }
+.fz-tile__value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+.fz-tile--in .fz-tile__value  { color: var(--fz-in-text); }
+.fz-tile--out .fz-tile__value { color: var(--fz-out-text); }
+
+/* ── Chip de ícono (categorías, neutro siempre) ─────────────────────── */
+.fz-icon-chip {
+  width: 40px; height: 40px;
+  border-radius: var(--fz-r-chip);
+  background: var(--fz-tint-neutral);
+  color: var(--fz-tint-neutral-fg);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.fz-icon-chip--sm { width: 32px; height: 32px; }
+
+/* ── Ícono de moneda (círculo) ───────────────────────────────────────── */
+.fz-currency-icon {
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+/* ── Fila de movimiento ──────────────────────────────────────────────── */
+.fz-tx-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fz-s3);
+  min-height: 64px;
+  padding: var(--fz-s2) 0;
+  min-width: 0;
+}
+.fz-tx-row + .fz-tx-row { border-top: 1px solid var(--fz-hairline); }
+.fz-tx-row__body { flex: 1; min-width: 0; }
+.fz-tx-row__title {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fz-tx-row__subtitle {
+  font-size: 13px;
+  color: var(--fz-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fz-tx-row__amount {
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+  flex-shrink: 0;
+}
+.fz-tx-row__amount--in  { color: var(--fz-in-text); }
+.fz-tx-row__amount--out { color: var(--fz-out-text); }
+.fz-tx-row__meta {
+  font-size: 12px;
+  color: var(--fz-ink-3);
+  text-align: right;
+}
+.fz-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--fz-s3) 0 var(--fz-s1);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fz-ink-2);
+  text-transform: capitalize;
+}
+
+/* ── Botones ─────────────────────────────────────────────────────────── */
+.fz-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: var(--fz-r-pill);
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 120ms ease, opacity 120ms ease, background-color 120ms ease;
+}
+.fz-btn:active { transform: scale(0.97); }
+.fz-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.fz-btn--primary { background: var(--fz-accent); color: #fff; }
+.fz-btn--primary:hover:not(:disabled) { background: var(--fz-accent-press); }
+.fz-btn--soft { background: var(--fz-accent-tint); color: var(--fz-accent); }
+.fz-btn--ghost { background: transparent; color: var(--fz-ink-2); }
+.fz-btn--danger { background: var(--fz-out-tint); color: var(--fz-out-text); }
+.fz-btn--block { width: 100%; }
+.fz-btn--sm { padding: 8px 14px; font-size: 13px; }
+
+.fz-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: var(--fz-r-pill);
+  border: none;
+  background: var(--fz-surface-sunk);
+  color: var(--fz-ink-2);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fz-icon-btn:active { transform: scale(0.94); }
+
+/* ── Segmented control (tipo de movimiento) ─────────────────────────── */
+.fz-segmented {
+  display: flex;
+  background: var(--fz-surface-sunk);
+  border-radius: var(--fz-r-pill);
+  padding: 4px;
+  gap: 4px;
+}
+.fz-segmented button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 8px;
+  border-radius: var(--fz-r-pill);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fz-ink-2);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.fz-segmented button[data-active="true"] {
+  background: var(--fz-surface);
+  color: var(--fz-ink);
+  box-shadow: var(--fz-sh-rest);
+}
+
+/* ── Campos ──────────────────────────────────────────────────────────── */
+.fz-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fz-ink-2);
+  margin-bottom: 6px;
+  display: block;
+}
+.fz-input {
+  width: 100%;
+  min-width: 0;
+  font-size: 16px; /* nunca menos: Safari hace zoom en iOS por debajo de esto */
+  font-weight: 500;
+  padding: 12px 14px;
+  border-radius: var(--fz-r-field);
+  border: 1px solid var(--fz-hairline);
+  background: var(--fz-surface-sunk);
+  color: var(--fz-ink);
+  outline: none;
+}
+.fz-input:focus { border-color: var(--fz-accent); box-shadow: 0 0 0 2px var(--fz-accent-tint); }
+select.fz-input { cursor: pointer; }
+
+.fz-amount-field {
+  display: flex;
+  align-items: center;
+  gap: var(--fz-s3);
+  padding: var(--fz-s3) var(--fz-s4);
+  border-radius: var(--fz-r-field);
+  background: var(--fz-surface-sunk);
+  border: 1px solid var(--fz-hairline);
+}
+.fz-amount-field__code {
+  width: 48px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fz-ink-2);
+}
+.fz-amount-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--fz-ink);
+  font-variant-numeric: tabular-nums;
+}
+.fz-amount-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--fz-ink-3);
+}
+.fz-amount-hint--over { color: var(--fz-out-text); font-weight: 600; }
+
+/* ── Category chips (selector horizontal) ───────────────────────────── */
+.fz-chip-row {
+  display: flex;
+  gap: var(--fz-s2);
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.fz-chip-row::-webkit-scrollbar { display: none; }
+.fz-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: var(--fz-r-pill);
+  border: none;
+  background: var(--fz-surface-sunk);
+  color: var(--fz-ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fz-chip[data-active="true"] { background: var(--fz-accent-tint); color: var(--fz-accent); }
+
+/* ── Sheet / modal ───────────────────────────────────────────────────── */
+.fz-overlay {
+  position: fixed; inset: 0;
+  background: rgba(16,24,40,0.35);
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+@media (min-width: 900px) {
+  .fz-overlay { align-items: center; }
+}
+.fz-sheet {
+  background: var(--fz-surface);
+  width: 100%;
+  max-height: 92vh;
+  overflow-y: auto;
+  border-radius: 28px 28px 0 0;
+  box-shadow: var(--fz-sh-modal);
+  padding: var(--fz-s3) var(--fz-s5) calc(var(--fz-s6) + env(safe-area-inset-bottom));
+}
+.fz-sheet__handle {
+  width: 36px; height: 4px;
+  border-radius: 999px;
+  background: var(--fz-hairline);
+  margin: 0 auto var(--fz-s4);
+}
+@media (min-width: 900px) {
+  .fz-sheet {
+    max-width: 480px;
+    border-radius: var(--fz-r-card);
+    padding: var(--fz-s6);
+    max-height: 88vh;
+  }
+  .fz-sheet__handle { display: none; }
+}
+.fz-sheet__title { font-size: 19px; font-weight: 700; margin-bottom: var(--fz-s4); }
+
+/* ── Skeleton ────────────────────────────────────────────────────────── */
+.fz-skel {
+  background: linear-gradient(90deg, var(--fz-hairline) 25%, #F5F6F7 37%, var(--fz-hairline) 63%);
+  background-size: 400% 100%;
+  animation: fz-skel-shine 1.4s ease infinite;
+  border-radius: 8px;
+}
+@keyframes fz-skel-shine {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fz-skel { animation: none; }
+}
+
+/* ── Estado vacío ────────────────────────────────────────────────────── */
+.fz-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--fz-s2);
+  padding: var(--fz-s8) var(--fz-s4);
+  color: var(--fz-ink-2);
+}
+.fz-empty__icon {
+  width: 56px; height: 56px;
+  border-radius: 999px;
+  background: var(--fz-tint-neutral);
+  color: var(--fz-tint-neutral-fg);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--fz-s2);
+}
+
+/* ── Sidebar (desktop) ───────────────────────────────────────────────── */
+.fz-sidebar {
+  display: none;
+}
+@media (min-width: 900px) {
+  .fz-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fz-s5);
+    position: sticky;
+    top: var(--fz-s6);
+    align-self: start;
+  }
+  .fz-sidebar__brand {
+    font-size: 19px;
+    font-weight: 700;
+    padding: 0 var(--fz-s2);
+  }
+  .fz-sidebar__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .fz-sidebar__link {
+    display: flex;
+    align-items: center;
+    gap: var(--fz-s3);
+    padding: 10px var(--fz-s3);
+    border-radius: var(--fz-r-tile);
+    color: var(--fz-ink-2);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .fz-sidebar__link:hover { background: var(--fz-surface-sunk); }
+  .fz-sidebar__link[data-active="true"] { background: var(--fz-accent-tint); color: var(--fz-accent); }
+  .fz-sidebar__rate-card {
+    background: var(--fz-surface);
+    border-radius: var(--fz-r-tile);
+    padding: var(--fz-s4);
+    box-shadow: var(--fz-sh-rest);
+    display: flex;
+    flex-direction: column;
+    gap: var(--fz-s2);
+  }
+  .fz-sidebar__rate-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--fz-s2);
+    font-size: 13px;
+  }
+}
+
+/* ── Tab bar (móvil, liquid glass) ───────────────────────────────────── */
+.fz-tabbar {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  left: 12px; right: 12px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(30px) saturate(180%) brightness(1.06);
+  -webkit-backdrop-filter: blur(30px) saturate(180%) brightness(1.06);
+  border: 0.5px solid rgba(255,255,255,0.7);
+  box-shadow: 0 8px 32px rgba(16,24,40,0.12), 0 2px 8px rgba(16,24,40,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.85), inset 0 -1px 0 rgba(16,24,40,0.05);
+  padding: 8px;
+}
+@media (min-width: 900px) {
+  .fz-tabbar { display: none; }
+}
+.fz-tabbar__item {
+  flex: 1 1 0;
+  max-width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 999px;
+  border: none;
+  background: none;
+  color: var(--fz-ink-2);
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 600;
+  transition: color 200ms ease;
+}
+.fz-tabbar__item[data-active="true"] { color: var(--fz-accent); }
+.fz-tabbar__fab {
+  width: 46px; height: 46px;
+  border-radius: 999px;
+  background: var(--fz-accent);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(22,97,60,0.4);
+}
+.fz-tabbar__fab:active { transform: scale(0.94); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .fz-tabbar__item, .fz-tabbar__fab { transition-timing-function: cubic-bezier(0.32, 1.2, 0.4, 1); }
+}
+
+/* ── Carrusel de cuentas ─────────────────────────────────────────────── */
+.fz-account-scroll {
+  display: flex;
+  gap: var(--fz-s3);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.fz-account-scroll::-webkit-scrollbar { display: none; }
+.fz-account-card {
+  flex: 0 0 auto;
+  width: 200px;
+  min-width: 0;
+  background: var(--fz-surface-sunk);
+  border-radius: var(--fz-r-tile);
+  padding: var(--fz-s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fz-s2);
+  text-decoration: none;
+  color: inherit;
+}
+.fz-account-card__name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fz-account-card__balance {
+  font-size: 18px;
+  font-weight: 700;
+}
+.fz-account-card__usd {
+  font-size: 12px;
+  color: var(--fz-ink-3);
+}
+
+/* ── Leyenda compartida de gráficos (gasto por categoría) ────────────── */
+.fz-legend-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fz-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fz-s2);
+  padding: var(--fz-s2) 0;
+  min-width: 0;
+}
+.fz-legend-row + .fz-legend-row { border-top: 1px solid var(--fz-hairline); }
+.fz-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.fz-legend-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.fz-legend-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fz-ink-2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── Dona de gasto por categoría ─────────────────────────────────────── */
+.fz-pie-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fz-s5);
+  align-items: center;
+}
+.fz-donut-wrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  flex-shrink: 0;
+  margin: 0 auto;
+}
+.fz-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.fz-pie-layout .fz-legend-list {
+  flex: 1;
+  min-width: 220px;
+}
+
+/* ── Anti-desborde ───────────────────────────────────────────────────── */
+.fz-min-w-0 { min-width: 0; }
+.fz-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Foco visible ────────────────────────────────────────────────────── */
+#fz-root :focus-visible {
+  outline: 2px solid var(--fz-accent);
+  outline-offset: 2px;
+}

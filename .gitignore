@@ -5,3 +5,8 @@ out/
 .env*.local
 .vercel
 .env*
+
+# Sprint 9 · Notificaciones — copia generada de lib/finanzas/ para la Edge
+# Function (scripts/build-edge-shared.mjs). Se regenera antes de cada
+# deploy, no se versiona — igual criterio que .next/.
+supabase/functions/_shared/finanzas/
