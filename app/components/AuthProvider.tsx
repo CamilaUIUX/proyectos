@@ -35,6 +35,13 @@ interface AuthValue {
   /** False si faltan las claves de Supabase; entonces no hay forma de exigir login. */
   canSignIn: boolean
   signOut: () => Promise<void>
+  /** True entre que se abre el link de "olvidé mi contraseña" del correo y que la
+   *  persona termina de poner la nueva — Supabase ya deja `user` con sesión en ese
+   *  momento (es una sesión de recuperación válida), así que sin esta bandera
+   *  AuthGate dejaría pasar directo a la app en vez de pedir la contraseña nueva. */
+  passwordRecovery: boolean
+  /** Cierra la pantalla de "nueva contraseña" después de guardarla con éxito. */
+  clearPasswordRecovery: () => void
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
@@ -66,18 +73,26 @@ function friendlyError(message: string): string {
   // The database trigger that blocks other domains reaches the client as a generic
   // "Database error saving new user", so name the real reason.
   if (m.includes('database error')) return `No se pudo crear la cuenta. Ese correo no está autorizado (se permiten cuentas ${ALLOWED_DOMAIN}).`
+  if (m.includes('different from the old password')) return 'La nueva contraseña tiene que ser distinta de la anterior.'
+  if (m.includes('auth session missing')) return 'El link ya venció o ya se usó. Pedí uno nuevo desde "Olvidé mi contraseña".'
   return message
 }
 
 /** Formulario de acceso, sin forma de cerrarlo: mientras no haya sesión es lo único
  *  que AuthGate deja ver de todo el sitio. */
 function LoginForm() {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+
+  function switchMode(next: typeof mode) {
+    setMode(next)
+    setError(null)
+    setNotice(null)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,7 +116,7 @@ function LoginForm() {
         })
         if (error) setError(friendlyError(error.message))
         // Sin error, onAuthStateChange actualiza la sesión y AuthGate deja pasar solo.
-      } else {
+      } else if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -111,24 +126,32 @@ function LoginForm() {
           setNotice('Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.')
           setMode('signin')
         }
+      } else {
+        // 'forgot': Supabase no distingue si el correo existe o no en la respuesta
+        // (por seguridad), así que siempre se muestra el mismo aviso de éxito.
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin,
+        })
+        if (error) setError(friendlyError(error.message))
+        else setNotice('Si esa cuenta existe, te mandamos un correo con un link para elegir una contraseña nueva.')
       }
     } finally {
       setBusy(false)
     }
   }
 
+  const title = mode === 'signin' ? 'Entrar' : mode === 'signup' ? 'Crear cuenta' : 'Recuperar contraseña'
+
   return (
     <div className="ed-dialog w-full max-w-md flex flex-col">
 
       <div className="flex flex-col gap-2 px-6 py-5 border-b border-[var(--line)]">
         <span className="ed-label">Acceso</span>
-        <h2 className="text-2xl font-medium tracking-[-0.02em]">
-          {mode === 'signin' ? 'Entrar' : 'Crear cuenta'}
-        </h2>
+        <h2 className="text-2xl font-medium tracking-[-0.02em]">{title}</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 py-6">
-        <span className="ed-chip ed-chip--muted self-start">Solo correos {ALLOWED_DOMAIN}</span>
+        {mode !== 'forgot' && <span className="ed-chip ed-chip--muted self-start">Solo correos {ALLOWED_DOMAIN}</span>}
 
         <label className="flex flex-col gap-2">
           <span className="ed-label">Correo</span>
@@ -139,15 +162,23 @@ function LoginForm() {
           />
         </label>
 
-        <label className="flex flex-col gap-2">
-          <span className="ed-label">Contraseña</span>
-          <input
-            type="password" required value={password} onChange={e => setPassword(e.target.value)}
-            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-            minLength={8} placeholder="Mínimo 8 caracteres"
-            className="ed-input"
-          />
-        </label>
+        {mode !== 'forgot' && (
+          <label className="flex flex-col gap-2">
+            <span className="ed-label">Contraseña</span>
+            <input
+              type="password" required value={password} onChange={e => setPassword(e.target.value)}
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+              minLength={8} placeholder="Mínimo 8 caracteres"
+              className="ed-input"
+            />
+          </label>
+        )}
+
+        {mode === 'signin' && (
+          <button type="button" onClick={() => switchMode('forgot')} className="ed-btn ed-btn--quiet self-start !px-0">
+            ¿Olvidaste tu contraseña?
+          </button>
+        )}
 
         {error && (
           <p role="alert" className="ed-module border-l-2 border-l-[var(--ink)] px-3 py-2.5 text-[12px] leading-relaxed">
@@ -161,18 +192,100 @@ function LoginForm() {
         )}
 
         <button type="submit" disabled={busy} className="ed-btn ed-btn--solid w-full py-3">
-          {busy ? 'Espera...' : mode === 'signin' ? 'Entrar' : 'Crear cuenta'}
+          {busy ? 'Espera...' : mode === 'signin' ? 'Entrar' : mode === 'signup' ? 'Crear cuenta' : 'Enviar link'}
         </button>
       </form>
 
       <div className="px-6 py-4 border-t border-[var(--line)]">
-        <button
-          onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); setNotice(null) }}
-          className="ed-btn ed-btn--quiet"
-        >
-          {mode === 'signin' ? 'No tengo cuenta' : 'Ya tengo cuenta'}
-        </button>
+        {mode === 'forgot' ? (
+          <button onClick={() => switchMode('signin')} className="ed-btn ed-btn--quiet">
+            Volver a iniciar sesión
+          </button>
+        ) : (
+          <button onClick={() => switchMode(mode === 'signin' ? 'signup' : 'signin')} className="ed-btn ed-btn--quiet">
+            {mode === 'signin' ? 'No tengo cuenta' : 'Ya tengo cuenta'}
+          </button>
+        )}
       </div>
+    </div>
+  )
+}
+
+/** Lo único que ve AuthGate mientras `passwordRecovery` es true — la sesión ya
+ *  existe (Supabase la crea al abrir el link del correo), así que esto no pide
+ *  la contraseña anterior, solo la nueva. Mismo look que <LoginForm>. */
+function ResetPasswordForm() {
+  const { clearPasswordRecovery } = useAuth()
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!supabase || busy) return
+    setError(null)
+    if (password !== confirm) {
+      setError('Las dos contraseñas no coinciden.')
+      return
+    }
+    setBusy(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) setError(friendlyError(error.message))
+      else setDone(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="ed-dialog w-full max-w-md flex flex-col">
+      <div className="flex flex-col gap-2 px-6 py-5 border-b border-[var(--line)]">
+        <span className="ed-label">Acceso</span>
+        <h2 className="text-2xl font-medium tracking-[-0.02em]">Elegí una contraseña nueva</h2>
+      </div>
+
+      {done ? (
+        <div className="flex flex-col gap-5 px-6 py-6">
+          <p role="status" className="px-3 py-2.5 text-[12px] leading-relaxed rounded-[var(--radius)] bg-[var(--accent-mint)]">
+            Contraseña actualizada.
+          </p>
+          <button onClick={clearPasswordRecovery} className="ed-btn ed-btn--solid w-full py-3">
+            Continuar
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-6 py-6">
+          <label className="flex flex-col gap-2">
+            <span className="ed-label">Contraseña nueva</span>
+            <input
+              type="password" required value={password} onChange={e => setPassword(e.target.value)}
+              autoComplete="new-password" minLength={8} placeholder="Mínimo 8 caracteres"
+              className="ed-input"
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="ed-label">Confirmar contraseña</span>
+            <input
+              type="password" required value={confirm} onChange={e => setConfirm(e.target.value)}
+              autoComplete="new-password" minLength={8} placeholder="Repetila"
+              className="ed-input"
+            />
+          </label>
+
+          {error && (
+            <p role="alert" className="ed-module border-l-2 border-l-[var(--ink)] px-3 py-2.5 text-[12px] leading-relaxed">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" disabled={busy} className="ed-btn ed-btn--solid w-full py-3">
+            {busy ? 'Espera...' : 'Guardar contraseña'}
+          </button>
+        </form>
+      )}
     </div>
   )
 }
@@ -186,6 +299,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [allowedApps, setAllowedApps] = useState<Set<string> | null>(null)
   // Sin Supabase configurado no hay sesión que esperar: se da por "resuelta" de una vez.
   const [ready, setReady] = useState(!supabase)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
     if (!supabase) return
@@ -193,15 +307,20 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session)
       setReady(true)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next)
       setReady(true)
+      // Supabase crea sesión al abrir el link de "olvidé mi contraseña" del correo
+      // y dispara este evento — sin capturarlo, AuthGate vería `user` con valor y
+      // dejaría pasar directo a la app en vez de pedir la contraseña nueva.
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
       // Drop the old profile/accesos on sign-out so the next person to log in can
       // never briefly inherit the previous user's role o mini-apps.
       if (!next) {
         setProfile(null)
         setProfileReady(false)
         setAllowedApps(null)
+        setPasswordRecovery(false)
       }
     })
     return () => sub.subscription.unsubscribe()
@@ -262,6 +381,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         hasAppAccess,
         canSignIn: supabaseConfigured,
         signOut: async () => { await supabase?.auth.signOut() },
+        passwordRecovery,
+        clearPasswordRecovery: () => setPasswordRecovery(false),
       }}
     >
       {children}
@@ -272,7 +393,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 /** Bloquea todo el sitio hasta que haya sesión iniciada: el login ya no es opcional
  *  para ninguna mini-app. Debe ir dentro de <AuthProvider>, envolviendo el layout raíz. */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { user, ready, canSignIn } = useAuth()
+  const { user, ready, canSignIn, passwordRecovery } = useAuth()
 
   // Evita el parpadeo de la pantalla de login mientras se confirma una sesión que
   // ya existía (localStorage de Supabase) — se resuelve en un instante, no vale la
@@ -298,6 +419,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
         <LoginForm />
+      </div>
+    )
+  }
+
+  // Chequeo ANTES de dejar pasar children: una sesión de recuperación ya tiene
+  // `user`, pero no debe entrar a ninguna mini-app hasta poner la contraseña nueva.
+  if (passwordRecovery) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] px-4">
+        <ResetPasswordForm />
       </div>
     )
   }
